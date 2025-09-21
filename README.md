@@ -20,6 +20,49 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Database & Prisma
+
+This project uses PostgreSQL with Prisma. The Prisma schema lives at `src/prisma/schema.prisma` and includes the NextAuth tables and the app domain models: `Project`, `ProjectMember`, `Task`, `Comment`, `Label`, and `Attachment`.
+
+### 1) Configure environment
+
+Create a `.env` file at the project root with your Postgres connection string:
+
+```bash
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME?schema=public"
+```
+
+Examples:
+
+- Supabase: `postgresql://postgres:YOUR_PASSWORD@db.xxxxx.supabase.co:5432/postgres?schema=public`
+- Local Postgres: `postgresql://postgres:postgres@localhost:5432/jira_clone?schema=public`
+
+Note: Do not commit `.env` to version control.
+
+### 2) Generate Prisma Client
+
+```bash
+npm run prisma:generate
+```
+
+### 3) Run migrations
+
+This will create/update tables in your database based on the schema.
+
+```bash
+npm run prisma:migrate
+```
+
+### 4) Seed demo data (optional)
+
+Seeding will create demo users, a project, labels, tasks with due dates, and comments.
+
+```bash
+npm run prisma:seed
+```
+
+The seed script is located at `src/prisma/seed.js`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
@@ -34,3 +77,4 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
