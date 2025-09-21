@@ -4,6 +4,7 @@ import { CSSProperties, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 
 export type KanbanLabel = { id?: string; name: string; color: string };
 export type KanbanUser = { id: string; name: string | null; email: string | null; image: string | null };
@@ -24,7 +25,12 @@ function formatDate(d?: string | Date | null) {
   if (!d) return null;
   const date = typeof d === "string" ? new Date(d) : d;
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString();
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function initials(name?: string | null, email?: string | null) {
@@ -46,7 +52,7 @@ function priorityColor(priority: string) {
 }
 
 export default function TaskCard({ task, onClick }: { task: KanbanTask; onClick?: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -62,26 +68,38 @@ export default function TaskCard({ task, onClick }: { task: KanbanTask; onClick?
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
       onClick={onClick}
-      className="rounded-md border bg-card p-3 shadow-sm hover:shadow cursor-pointer"
+      className="group relative rounded-md border bg-card p-3 shadow-sm hover:shadow cursor-pointer"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="font-medium leading-tight line-clamp-2">{task.title}</div>
-        <span className={`ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${priorityColor(task.priority)}`}>
-          {task.priority[0].toUpperCase() + task.priority.slice(1)}
-        </span>
-      </div>
-
-      <div className="mt-2 flex items-center gap-2">
-        {due ? <div className="text-xs text-muted-foreground">Due {due}</div> : null}
-        <div className="ml-auto flex items-center gap-1">
+      {/* Subtle drag handle (overlay) */}
+      <button
+        ref={setActivatorNodeRef as any}
+        {...listeners}
+        type="button"
+        className="absolute right-2 top-2 hidden h-5 w-5 items-center justify-center rounded hover:bg-muted/70 group-hover:flex"
+        title="Drag"
+        aria-label="Drag"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </button>
+      <div className="grid grid-cols-[1fr_auto] gap-x-2 pr-6">
+        <div>
+          <div className="font-medium leading-tight line-clamp-2">{task.title}</div>
+        </div>
+        <div className="row-span-2 flex flex-col items-end gap-1">
+          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${priorityColor(task.priority)}`}>
+            {task.priority[0].toUpperCase() + task.priority.slice(1)}
+          </span>
           {task.assignee ? (
             <Avatar className="h-6 w-6">
               <AvatarImage src={task.assignee.image || undefined} alt={task.assignee.name || task.assignee.email || "Assignee"} />
               <AvatarFallback>{initials(task.assignee.name, task.assignee.email)}</AvatarFallback>
             </Avatar>
           ) : null}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          {due ? <div className="text-xs text-muted-foreground">Due {due}</div> : null}
         </div>
       </div>
 

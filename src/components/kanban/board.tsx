@@ -17,6 +17,7 @@ import {
 import Column from "./column";
 import { Button } from "@/components/ui/button";
 import TaskModal from "./task-modal";
+import TaskDetailsDrawer from "./task-details-drawer";
 import { KanbanTask, KanbanUser } from "./task-card";
 
 export type KanbanBoardProps = {
@@ -38,6 +39,8 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<KanbanTask | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selected, setSelected] = useState<KanbanTask | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -84,8 +87,8 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
   }
 
   function handleTaskClick(task: KanbanTask) {
-    setEditing(task);
-    setModalOpen(true);
+    setSelected(task);
+    setDrawerOpen(true);
   }
 
   function computeReorderWithin(list: KanbanTask[], activeId: string, overId: string) {
@@ -197,6 +200,20 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
           setModalOpen(false);
           setEditing(null);
           await refresh();
+        }}
+      />
+
+      <TaskDetailsDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        task={selected}
+        members={members}
+        onTaskUpdated={(partial) => {
+          if (!selected) return;
+          const id = selected.id;
+          setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...partial } : t)));
+          // also update selected for immediate UI feedback
+          setSelected((s) => (s ? { ...s, ...partial } as KanbanTask : s));
         }}
       />
 

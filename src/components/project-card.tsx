@@ -37,6 +37,13 @@ export function ProjectCard({ project, canAdmin }: ProjectCardProps) {
   const [editOpen, setEditOpen] = useState(false);
 
   const created = new Date(project.createdAt);
+  // Use deterministic formatting (fixed locale + UTC) to avoid hydration mismatch
+  const createdStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(created);
 
   function initials(name?: string | null, email?: string | null) {
     if (name) {
@@ -114,7 +121,7 @@ export function ProjectCard({ project, canAdmin }: ProjectCardProps) {
             <div className="ml-2 text-xs text-muted-foreground">+{project.members.length - 5} more</div>
           ) : null}
         </div>
-        <div className="ml-auto text-xs text-muted-foreground">Created {created.toLocaleDateString()}</div>
+        <div className="ml-auto text-xs text-muted-foreground">Created {createdStr}</div>
       </div>
       {canAdmin ? (
         <EditProjectModal

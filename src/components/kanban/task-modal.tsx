@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Check, X } from "lucide-react";
 import { KanbanTask, KanbanUser } from "./task-card";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -28,6 +29,7 @@ export default function TaskModal({
   const [dueDate, setDueDate] = useState<string>("");
   const [labelsText, setLabelsText] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -110,7 +112,7 @@ export default function TaskModal({
       await onSaved();
     } catch (err) {
       console.error(err);
-      alert("Failed to save task");
+      setErrorMsg("Failed to save task");
     } finally {
       setSubmitting(false);
     }
@@ -121,13 +123,25 @@ export default function TaskModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
-      <div className="relative z-10 w-full max-w-lg rounded-lg border bg-background p-6 shadow-xl">
-        <h2 className="text-lg font-semibold">{editing.id ? "Edit Task" : `New Task — ${labelForStatus(editing.status)}`}</h2>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div>
+      <div className="relative z-10 w-full max-w-xl rounded-lg border bg-background p-6 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">{editing.id ? "Edit Task" : `New Task — ${labelForStatus(editing.status)}`}</h2>
+          <button
+            type="button"
+            className="rounded-md border p-2"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close"
+            title="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-5">
+          <div className="space-y-1">
             <label className="block text-sm font-medium">Title</label>
             <input
-              className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
@@ -135,22 +149,21 @@ export default function TaskModal({
             />
           </div>
 
-          <div>
+          <div className="space-y-1">
             <label className="block text-sm font-medium">Description</label>
             <textarea
-              className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
-              rows={4}
+              className="min-h-[120px] w-full rounded-md border bg-transparent p-3 text-sm outline-none focus:ring-2 focus:ring-primary"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description"
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1">
               <label className="block text-sm font-medium">Assignee</label>
               <select
-                className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                 value={assigneeId}
                 onChange={(e) => setAssigneeId(e.target.value)}
               >
@@ -162,10 +175,10 @@ export default function TaskModal({
                 ))}
               </select>
             </div>
-            <div>
+            <div className="space-y-1">
               <label className="block text-sm font-medium">Priority</label>
               <select
-                className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as any)}
               >
@@ -178,34 +191,51 @@ export default function TaskModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1">
               <label className="block text-sm font-medium">Due date</label>
               <input
                 type="date"
-                className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium">Labels (name:color, comma-separated)</label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">Labels</label>
               <input
-                className="mt-1 w-full rounded-md border bg-transparent px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                 value={labelsText}
                 onChange={(e) => setLabelsText(e.target.value)}
                 placeholder="bug:#e11d48, backend:#2563eb"
               />
+              {labelsText.trim() ? (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {parseLabels(labelsText).map((l) => (
+                    <span key={l.name} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs" style={{ borderColor: l.color, color: l.color }}>
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: l.color }} />
+                      {l.name}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving..." : editing.id ? "Save" : "Create"}
-            </Button>
+          <div className="flex items-center justify-between pt-2">
+            {errorMsg ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive">
+                {errorMsg}
+              </div>
+            ) : <div />}
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting} aria-label="Cancel" title="Cancel">
+                <X className="mr-1 h-4 w-4" /> Cancel
+              </Button>
+              <Button type="submit" disabled={submitting} aria-label={editing.id ? "Save" : "Create"} title={editing.id ? "Save" : "Create"}>
+                <Check className="mr-1 h-4 w-4" /> {submitting ? "Saving..." : editing.id ? "Save" : "Create"}
+              </Button>
+            </div>
           </div>
         </form>
       </div>
