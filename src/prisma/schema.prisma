@@ -1,0 +1,69 @@
+// Prisma schema for NextAuth with PostgreSQL
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid()) @map("id")
+  name          String?   @map("name")
+  email         String?   @unique @map("email")
+  emailVerified DateTime? @map("email_verified")
+  image         String?   @map("image")
+  password      String?   @map("password")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts  Account[]
+  sessions  Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(cuid()) @map("id")
+  userId            String   @map("user_id")
+  type              String   @map("type")
+  provider          String   @map("provider")
+  providerAccountId String   @map("provider_account_id")
+  refresh_token     String?  @db.Text @map("refresh_token")
+  access_token      String?  @db.Text @map("access_token")
+  expires_at        Int?     @map("expires_at")
+  token_type        String?  @map("token_type")
+  scope             String?  @map("scope")
+  id_token          String?  @db.Text @map("id_token")
+  session_state     String?  @map("session_state")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid()) @map("id")
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime @map("expires")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String   @map("identifier")
+  token      String   @unique @map("token")
+  expires    DateTime @map("expires")
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
