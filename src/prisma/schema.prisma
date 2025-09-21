@@ -25,6 +25,8 @@ model User {
   projects  ProjectMember[]
   tasks     Task[]    @relation("AssignedTasks")
   comments  Comment[]
+  // inviter relation (optional)
+  sentInvitations Invitation[] @relation("InvitedByUser")
 
   @@map("users")
 }
@@ -85,6 +87,7 @@ model Project {
 
   tasks   Task[]
   members ProjectMember[]
+  invitations Invitation[]
 }
 
 model ProjectMember {
@@ -144,5 +147,25 @@ model Attachment {
   uploadedAt DateTime @default(now())
 
   task Task @relation(fields: [taskId], references: [id])
+}
+
+// Invitations for project membership that require user acceptance
+model Invitation {
+  id        String   @id @default(cuid())
+  email     String
+  projectId String
+  role      String   @default("member")
+  token     String   @unique
+  status    String   @default("pending") // pending | accepted | revoked | expired
+  invitedBy String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  project   Project @relation(fields: [projectId], references: [id])
+  invitedByUser User? @relation("InvitedByUser", fields: [invitedBy], references: [id])
+
+  @@index([email])
+  @@index([projectId])
+  @@unique([email, projectId, status])
 }
 
