@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import KanbanBoard from "../../../components/kanban/board";
+import ProjectChatModal from "@/components/chat/project-chat-modal";
 
 export default async function ProjectPage({ params }: { params: { id: string } }) {
   const { id: projectId } = params;
@@ -36,11 +37,22 @@ export default async function ProjectPage({ params }: { params: { id: string } }
 
   return (
     <main className="container mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{project.name}</h1>
-        {project.description ? (
-          <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
-        ) : null}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{project.name}</h1>
+          {project.description ? (
+            <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
+          ) : null}
+        </div>
+        <ProjectChatModal
+          projectId={projectId}
+          currentUser={{
+            id: session.user.id,
+            name: session.user.name ?? null,
+            image: session.user.image ?? null,
+          }}
+          buttonText="Open Chat"
+        />
       </div>
 
       <KanbanBoard
@@ -48,6 +60,19 @@ export default async function ProjectPage({ params }: { params: { id: string } }
         initialTasks={tasks as any}
         members={members.map((m: { user: { id: string; name: string | null; email: string | null; image: string | null } }) => m.user)}
       />
+
+      {/* Optional floating button for mobile */}
+      <div className="fixed bottom-6 right-6 lg:hidden">
+        <ProjectChatModal
+          projectId={projectId}
+          currentUser={{
+            id: session.user.id,
+            name: session.user.name ?? null,
+            image: session.user.image ?? null,
+          }}
+          buttonText="Chat"
+        />
+      </div>
     </main>
   );
 }

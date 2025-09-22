@@ -27,6 +27,7 @@ model User {
   comments  Comment[]
   // inviter relation (optional)
   sentInvitations Invitation[] @relation("InvitedByUser")
+  messages ChatMessage[]
 
   @@map("users")
 }
@@ -88,6 +89,7 @@ model Project {
   tasks   Task[]
   members ProjectMember[]
   invitations Invitation[]
+  messages ChatMessage[]
 }
 
 model ProjectMember {
@@ -170,5 +172,20 @@ model Invitation {
   @@index([email])
   @@index([projectId])
   @@unique([email, projectId, status])
+}
+
+// Real-time chat messages per project
+model ChatMessage {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id])
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id])
+  content    String?
+  fileUrl    String?
+  fileType   String?
+  createdAt  DateTime @default(now())
+
+  @@index([projectId, createdAt])
 }
 
