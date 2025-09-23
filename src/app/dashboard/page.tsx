@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma";
 import CreateProjectModal from "@/components/create-project-modal";
 import { ProjectCard } from "@/components/project-card";
 import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/");
 
@@ -30,12 +31,48 @@ export default async function DashboardPage() {
   type Member = { user: { id: string; name: string | null; email: string | null; image: string | null }; role: string };
   type ProjectItem = { id: string; name: string; description: string | null; createdAt: Date; members: Member[] };
 
+  const sp = await searchParams;
+  const errorRaw = sp?.inviteError;
+  const successRaw = sp?.inviteSuccess;
+  const errorKey = (Array.isArray(errorRaw) ? errorRaw[0] : errorRaw) || "";
+  const successKey = (Array.isArray(successRaw) ? successRaw[0] : successRaw) || "";
+
+  const errorMessage = errorKey === "missing_token"
+    ? "Invitation token is missing."
+    : errorKey === "invalid_or_expired"
+    ? "This invitation is invalid or has expired."
+    : errorKey === "email_mismatch"
+    ? "This invitation is for a different email address."
+    : "";
+
+  const successMessage = successKey === "accepted" ? "Invitation accepted. You've been added to the project." : "";
+
   return (
     <main className="container mx-auto max-w-7xl px-4 py-10">
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="mt-2 text-muted-foreground">Your projects</p>
+        </div>
+
+        {/* Feedback for invitation accept flows */}
+        <div className="w-full">
+          {errorMessage ? (
+            <div className="mt-4">
+              <Alert variant="destructive">
+                <AlertTitle>Invitation Error</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            </div>
+          ) : null}
+          {successMessage ? (
+            <div className="mt-4">
+              <Alert>
+                <AlertTitle>Success</AlertTitle>
+                <AlertDescription>{successMessage}</AlertDescription>
+              </Alert>
+            </div>
+          ) : null}
         </div>
 
       {invitations.length > 0 && (
@@ -48,12 +85,12 @@ export default async function DashboardPage() {
                   <div className="font-medium">{inv.project.name}</div>
                   <div className="text-xs text-muted-foreground">{inv.project.description}</div>
                 </div>
-                <form
-                  action={`/invitations/accept?token=${encodeURIComponent(inv.token)}`}
-                  method="get"
+                <a
+                  href={`/invitations/accept?token=${encodeURIComponent(inv.token)}`}
+                  className="text-sm font-medium text-primary underline"
                 >
-                  <button className="text-sm font-medium text-primary underline">Accept</button>
-                </form>
+                  Accept
+                </a>
               </li>
             ))}
           </ul>

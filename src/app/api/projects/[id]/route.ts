@@ -4,6 +4,30 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "node:crypto";
 
+// GET /api/projects/[id] - return project info and ownership
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id: projectId } = await ctx.params;
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: {
+      members: { include: { user: { select: { id: true, name: true, email: true, image: true } } } },
+    },
+  });
+  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const isMember = project.members.some((m: { userId: string }) => m.userId === session.user.id);
+  // Owner rule: if ownerId is set, only that user is owner; if not set, any admin acts as owner (backwards compatibility)
+  const isOwner = project.ownerId
+    ? project.ownerId === session.user.id
+    : project.members.some((m: { userId: string; role?: string }) => m.userId === session.user.id && (m as any).role === "admin");
+  if (!isMember && !isOwner) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  return NextResponse.json({ project, isOwner });
+}
+
 // Helper to check if current user is admin of the project
 async function requireAdmin(userId: string, projectId: string) {
   const member = await prisma.projectMember.findFirst({

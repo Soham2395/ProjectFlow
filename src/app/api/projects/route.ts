@@ -47,6 +47,7 @@ export async function POST(req: Request) {
     data: {
       name: name.trim(),
       description: description?.trim() || null,
+      ownerId: session.user.id,
       members: {
         create: [{ userId: session.user.id, role: "admin" }],
       },

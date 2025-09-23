@@ -4,9 +4,11 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import KanbanBoard from "../../../components/kanban/board";
 import ProjectChatModal from "@/components/chat/project-chat-modal";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
-export default async function ProjectPage({ params }: { params: { id: string } }) {
-  const { id: projectId } = params;
+export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: projectId } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/");
 
@@ -44,15 +46,23 @@ export default async function ProjectPage({ params }: { params: { id: string } }
             <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
           ) : null}
         </div>
-        <ProjectChatModal
-          projectId={projectId}
-          currentUser={{
-            id: session.user.id,
-            name: session.user.name ?? null,
-            image: session.user.image ?? null,
-          }}
-          buttonText="Open Chat"
-        />
+        <div className="flex items-center gap-2">
+          <Link href={`/project/${projectId}/settings`}>
+            <Button variant="ghost">Settings</Button>
+          </Link>
+          <Link href={`/project/${projectId}/commits`}>
+            <Button variant="ghost">Commits</Button>
+          </Link>
+          <ProjectChatModal
+            projectId={projectId}
+            currentUser={{
+              id: session.user.id,
+              name: session.user.name ?? null,
+              image: session.user.image ?? null,
+            }}
+            buttonText="Open Chat"
+          />
+        </div>
       </div>
 
       <KanbanBoard

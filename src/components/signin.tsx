@@ -20,8 +20,8 @@ interface SignInProps {
 
 export default function SignIn({ providers = null, mode = "signin" }: SignInProps) {
   const params = useSearchParams();
-  const error = params.get("error");
-  const callbackUrl = params.get("callbackUrl") ?? "/dashboard";
+  const error = params?.get("error");
+  const callbackUrl = params?.get("callbackUrl") ?? "/dashboard";
   const [pending, setPending] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

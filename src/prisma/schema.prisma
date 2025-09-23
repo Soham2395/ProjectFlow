@@ -29,6 +29,12 @@ model User {
   sentInvitations Invitation[] @relation("InvitedByUser")
   messages ChatMessage[]
 
+  // One-to-one GitHub token relation
+  githubToken GitHubToken?
+
+  // Projects owned by this user
+  ownedProjects Project[] @relation("ProjectOwner")
+
   @@map("users")
 }
 
@@ -85,11 +91,19 @@ model Project {
   name        String
   description String?
   createdAt   DateTime         @default(now())
+  ownerId     String?
+  owner       User?            @relation("ProjectOwner", fields: [ownerId], references: [id])
 
   tasks   Task[]
   members ProjectMember[]
   invitations Invitation[]
   messages ChatMessage[]
+
+  // GitHub integration
+  repoName                 String?
+  repoOwner                String?
+  repoUrl                  String?
+  githubIntegrationEnabled Boolean      @default(false)
 }
 
 model ProjectMember {
@@ -187,5 +201,23 @@ model ChatMessage {
   createdAt  DateTime @default(now())
 
   @@index([projectId, createdAt])
+}
+
+
+// Secure storage for user's GitHub access token (encrypted at rest)
+model GitHubToken {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  // AES-GCM or similar encryption: store ciphertext and IV separately
+  encryptedAccessToken   String   @db.Text
+  iv                     String   // base64-encoded IV/nonce
+  authTag                String   // base64-encoded GCM auth tag
+  tokenType              String?
+  scope                  String?
+  expiresAt              DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

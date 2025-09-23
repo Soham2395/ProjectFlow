@@ -5,6 +5,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { encrypt } from "@/lib/crypto";
 
 declare module "next-auth" {
   interface Session extends DefaultSession {
@@ -58,9 +59,49 @@ export const authOptions: AuthOptions = {
     GitHub({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
+      // Request repo scopes for private repo access when user consents
+      authorization: {
+        params: { scope: "repo read:org" },
+      },
     }),
   ],
   callbacks: {
+    async jwt({ token, account, profile, user }) {
+      // Persist GitHub access token securely on first sign-in or when refreshed
+      try {
+        if (account?.provider === "github" && account.access_token) {
+          const userId = (user as any)?.id || (token as any)?.sub;
+          if (userId) {
+            const { ciphertext, iv, tag } = encrypt(account.access_token);
+            await prisma.gitHubToken.upsert({
+              where: { userId },
+              update: {
+                encryptedAccessToken: ciphertext,
+                iv,
+                authTag: tag,
+                tokenType: account.token_type ?? null,
+                scope: account.scope ?? null,
+                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
+              },
+              create: {
+                userId,
+                encryptedAccessToken: ciphertext,
+                iv,
+                authTag: tag,
+                tokenType: account.token_type ?? null,
+                scope: account.scope ?? null,
+                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
+              },
+            });
+          }
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("[auth] Failed to persist GitHub token:", e);
+        }
+      }
+      return token;
+    },
     // Update the session with the user's ID. With JWT strategy, use token.sub.
     async session({ session, token, user }) {
       if (session.user) {

@@ -7,7 +7,7 @@ import { AlertCircle } from "lucide-react"
 
 export default function AuthErrorPage() {
   const searchParams = useSearchParams()
-  const error = searchParams.get("error")
+  const error = searchParams?.get("error") ?? null
 
   useEffect(() => {
     if (error) {
