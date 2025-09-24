@@ -4,7 +4,6 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import CreateProjectModal from "@/components/create-project-modal";
 import { ProjectCard } from "@/components/project-card";
-import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -123,9 +122,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           })}
         </div>
       )}
-
-      {/* Floating create button with modal */}
-      {/* Client component handles its own state and refresh on success */}
       <CreateProjectModal />
     </main>
   );
