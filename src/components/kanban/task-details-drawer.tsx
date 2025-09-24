@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Check, X, Send, Eye, EyeOff, Wand2 } from "lucide-react";
+import { Pencil, Trash2, Check, X, Send, Eye, EyeOff, Wand2, Copy } from "lucide-react";
 import { KanbanTask, KanbanUser } from "./task-card";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -165,6 +165,23 @@ export default function TaskDetailsDrawer({
             className="w-full rounded-md border bg-transparent px-3 py-2 text-lg font-semibold outline-none focus:ring-2 focus:ring-primary"
             placeholder="Task title"
           />
+          {/* Task ID and copy */}
+          <div className="flex items-center gap-2">
+            <span
+              className="hidden md:inline-block rounded-md border px-2 py-1 text-[11px] font-mono text-muted-foreground"
+              title="Task ID"
+            >
+              {local.id}
+            </span>
+            <button
+              className="rounded-md border p-2"
+              onClick={() => navigator.clipboard?.writeText(String(local.id))}
+              aria-label="Copy Task ID"
+              title="Copy Task ID"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          </div>
           <button
             className="rounded-md border p-2"
             onClick={() => onOpenChange(false)}

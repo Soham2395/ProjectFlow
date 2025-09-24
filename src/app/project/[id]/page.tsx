@@ -6,6 +6,7 @@ import KanbanBoard from "../../../components/kanban/board";
 import ProjectChatModal from "@/components/chat/project-chat-modal";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import ProjectAssistant from "@/components/assistant/project-assistant";
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = await params;
@@ -70,6 +71,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         initialTasks={tasks as any}
         members={members.map((m: { user: { id: string; name: string | null; email: string | null; image: string | null } }) => m.user)}
       />
+
+      {/* AI Project Assistant */}
+      <ProjectAssistant projectId={projectId} />
 
       {/* Optional floating button for mobile */}
       <div className="fixed bottom-6 right-6 lg:hidden">
