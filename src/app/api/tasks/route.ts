@@ -169,12 +169,17 @@ export async function PATCH(req: Request) {
   if (!isMember) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await prisma.$transaction(
-    updates.map((u) =>
-      prisma.task.update({
+    updates.map((u) => {
+      const next = u.status.toLowerCase();
+      return prisma.task.update({
         where: { id: u.id },
-        data: { status: u.status.toLowerCase(), sortOrder: u.sortOrder },
-      })
-    )
+        data: {
+          status: next,
+          sortOrder: u.sortOrder,
+          completedAt: next === "done" ? new Date() : null,
+        },
+      });
+    })
   );
 
   return NextResponse.json({ ok: true });

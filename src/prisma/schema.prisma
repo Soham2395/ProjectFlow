@@ -135,6 +135,8 @@ model Task {
   projectId   String
   assigneeId  String?
   createdAt   DateTime     @default(now())
+  // Timestamp when the task was moved to "done". Used for analytics.
+  completedAt DateTime?
   sortOrder   Int          @default(0)
 
   project   Project  @relation(fields: [projectId], references: [id])

@@ -51,10 +51,6 @@ export default function ProjectAssistant({ projectId }: { projectId: string }) {
             <Button size="sm" variant="secondary" onClick={() => quick("Suggest task allocation for next sprint")}>Suggest allocation</Button>
           </div>
         </div>
-        <div className="rounded-md border p-3 text-sm text-muted-foreground">
-          <div className="mb-1 flex items-center gap-2 font-semibold"><ListChecks className="h-4 w-4" /> Tips</div>
-          Try commands like: "Add a task to fix login bug, assign to Alice, due Friday" or "Move bug #42 to In Progress".
-        </div>
       </div>
       <div className="md:col-span-8 flex h-[460px] flex-col rounded-md border">
         <div className="flex-1 space-y-3 overflow-y-auto p-3">

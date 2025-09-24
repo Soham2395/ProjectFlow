@@ -129,7 +129,16 @@ export async function createTaskNL({
 
 export async function updateTaskNL({ id, field, value }: { id: string; field: string; value: any }) {
   const data: any = {};
-  if (field === "status") data.status = String(value).toLowerCase();
+  if (field === "status") {
+    const next = String(value).toLowerCase();
+    data.status = next;
+    // Maintain completedAt based on status transitions
+    if (next === "done") {
+      data.completedAt = new Date();
+    } else {
+      data.completedAt = null;
+    }
+  }
   else if (field === "priority") data.priority = String(value).toLowerCase();
   else if (field === "assigneeId") data.assigneeId = value || null;
   else if (field === "title") data.title = String(value);
