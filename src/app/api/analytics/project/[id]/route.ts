@@ -5,12 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { getProjectAnalytics } from "@/lib/analytics";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const projectId = params.id;
+    const { id: projectId } = await context.params;
     const membership = await prisma.projectMember.findFirst({ where: { projectId, userId: session.user.id } });
     if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

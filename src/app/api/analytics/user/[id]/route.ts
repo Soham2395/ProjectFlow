@@ -5,12 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { getUserAnalytics } from "@/lib/analytics";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const userId = params.id;
+    const { id: userId } = await context.params;
     // Allow users to view their own analytics or project admins in future
     if (userId !== session.user.id) {
       // Check if user shares any project with the target user
