@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getSocket } from "@/lib/socket-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Image from "next/image";
 
 type Sender = {
   id: string;
@@ -231,7 +232,7 @@ function FilePreview({ url, fileType }: { url: string; fileType: string }) {
   if (fileType.startsWith("image/")) {
     return (
       <a href={url} target="_blank" rel="noreferrer" className="mt-1 block">
-        <img src={url} alt="uploaded" className="max-h-56 rounded-md border" />
+        <Image src={url} alt="uploaded" className="max-h-56 rounded-md border" />
       </a>
     );
   }

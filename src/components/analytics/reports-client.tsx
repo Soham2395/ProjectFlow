@@ -35,7 +35,7 @@ type Stats = {
   activity: { date: string; commits: number; updates: number; messages: number }[];
 };
 
-export default function ReportsClient({ projectId, stats, insights }: { projectId: string; stats: Stats; insights: any }) {
+export default function ReportsClient({ projectId, stats}: { projectId: string; stats: Stats; insights: any }) {
   const totalTasks = stats.tasksByStatus.reduce((a, b) => a + b.count, 0) || 1;
   const todo = stats.tasksByStatus.find((s) => s.status === "todo")?.count || 0;
   const inProgress = stats.tasksByStatus.find((s) => s.status === "in_progress")?.count || 0;
@@ -50,7 +50,6 @@ export default function ReportsClient({ projectId, stats, insights }: { projectI
   } as const;
 
   const valueFormatter = (value: any) => (typeof value === "number" ? value.toLocaleString() : value);
-  const percentFormatter = (value: number) => `${Math.round(value * 100)}%`;
 
   function exportCSV() {
     const rows: string[] = [];

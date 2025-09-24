@@ -1,4 +1,4 @@
-import NextAuth, { type AuthOptions, type DefaultSession } from "next-auth";
+import { type AuthOptions, type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -66,7 +66,7 @@ export const authOptions: AuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account, profile, user }) {
+    async jwt({ token, account, user }) {
       // Persist GitHub access token securely on first sign-in or when refreshed
       try {
         if (account?.provider === "github" && account.access_token) {

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Send, Bot, ListChecks, AlertTriangle, Users } from "lucide-react";
+import { Send, Bot } from "lucide-react";
 
 export default function ProjectAssistant({ projectId }: { projectId: string }) {
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([

@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import ReportsClient from "@/components/analytics/reports-client";
 import { getProjectAnalytics, detectOverload } from "@/lib/analytics";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 export default async function ProjectReportsPage({ params }: { params: Promise<{ id: string }> }) {

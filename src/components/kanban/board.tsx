@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   DragEndEvent,
@@ -15,7 +15,6 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import Column from "./column";
-import { Button } from "@/components/ui/button";
 import TaskModal from "./task-modal";
 import TaskDetailsDrawer from "./task-details-drawer";
 import { KanbanTask, KanbanUser } from "./task-card";
