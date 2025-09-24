@@ -24,6 +24,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     include: {
       assignee: { select: { id: true, name: true, email: true, image: true } },
       labels: true,
+      aiSuggestedAssignee: { select: { id: true, name: true, email: true, image: true } },
     },
   });
   if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -72,7 +73,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const task = await prisma.task.update({
     where: { id },
     data: { ...data, ...(labelsOp ? { labels: labelsOp } : {}) },
-    include: { assignee: { select: { id: true, name: true, email: true, image: true } }, labels: true },
+    include: {
+      assignee: { select: { id: true, name: true, email: true, image: true } },
+      labels: true,
+      aiSuggestedAssignee: { select: { id: true, name: true, email: true, image: true } },
+    },
   });
 
   return NextResponse.json({ task });

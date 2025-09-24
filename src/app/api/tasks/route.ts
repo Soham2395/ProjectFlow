@@ -26,6 +26,7 @@ export async function GET(req: Request) {
     include: {
       assignee: { select: { id: true, name: true, email: true, image: true } },
       labels: true,
+      aiSuggestedAssignee: { select: { id: true, name: true, email: true, image: true } },
     },
     orderBy: [
       { status: "asc" },
@@ -94,8 +95,56 @@ export async function POST(req: Request) {
           }
         : {}),
     },
-    include: { assignee: { select: { id: true, name: true, email: true, image: true } }, labels: true },
+    include: {
+      assignee: { select: { id: true, name: true, email: true, image: true } },
+      labels: true,
+      aiSuggestedAssignee: { select: { id: true, name: true, email: true, image: true } },
+    },
   });
+
+  // Optionally call AI allocation service to suggest an assignee on creation
+  try {
+    if (process.env.AI_ALLOCATION_ENABLED === "true") {
+      const url = new URL(req.url);
+      const origin = `${url.protocol}//${url.host}`;
+      const res = await fetch(`${origin}/api/ai/allocateTask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            labels: (task.labels || []).map((l: { name: string }) => ({ name: l.name })),
+            dueDate: task.dueDate,
+            projectId: task.projectId,
+          },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.suggestion?.userId) {
+          const updated = await prisma.task.update({
+            where: { id: task.id },
+            data: {
+              aiSuggestedAssigneeId: data.suggestion.userId,
+              allocationConfidence: typeof data.suggestion.confidence === "number" ? data.suggestion.confidence : null,
+            },
+            include: {
+              assignee: { select: { id: true, name: true, email: true, image: true } },
+              labels: true,
+              aiSuggestedAssignee: { select: { id: true, name: true, email: true, image: true } },
+            },
+          });
+          return NextResponse.json({ task: updated }, { status: 201 });
+        }
+      }
+    }
+  } catch (e) {
+    // Do not block task creation on AI errors
+    console.error("AI allocation error", e);
+  }
 
   return NextResponse.json({ task }, { status: 201 });
 }

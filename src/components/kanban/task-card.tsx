@@ -19,6 +19,8 @@ export type KanbanTask = {
   labels: KanbanLabel[];
   sortOrder?: number;
   createdAt?: string | Date;
+  aiSuggestedAssignee?: KanbanUser | null;
+  allocationConfidence?: number | null;
 };
 
 function formatDate(d?: string | Date | null) {

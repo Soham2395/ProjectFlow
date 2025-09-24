@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, X } from "lucide-react";
+import { Check, X, Wand2 } from "lucide-react";
 import { KanbanTask, KanbanUser } from "./task-card";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -30,6 +30,9 @@ export default function TaskModal({
   const [labelsText, setLabelsText] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{ userId: string; confidence: number } | null>(null);
+  const [aiError, setAiError] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -62,6 +65,60 @@ export default function TaskModal({
       setLabelsText("");
     }
   }, [open, editing]);
+
+  async function fetchAISuggestion() {
+    if (!editing) return;
+    // Client-side friendly validation before calling the API
+    if (!title.trim()) {
+      setAiError("Please enter a task title to get an AI suggestion.");
+      return;
+    }
+    if (!priority) {
+      setAiError("Please select a priority to get an AI suggestion.");
+      return;
+    }
+    if (!projectId) {
+      setAiError("We couldn't detect the project. Please close and reopen the modal.");
+      return;
+    }
+    setAiLoading(true);
+    setAiError("");
+    setAiSuggestion(null);
+    try {
+      const res = await fetch("/api/ai/allocateTask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: {
+            title: title.trim() || "",
+            description: description || "",
+            priority,
+            labels: parseLabels(labelsText).map((l) => ({ name: l.name })),
+            dueDate: dueDate || null,
+            projectId,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.suggestion) {
+        setAiSuggestion(data.suggestion);
+      } else if (data?.disabled) {
+        setAiError("AI allocation is disabled.");
+      } else {
+        setAiError(data?.error || "Failed to get AI suggestion");
+      }
+    } catch (e) {
+      console.error(e);
+      setAiError("Failed to get AI suggestion");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function applyAISuggestion() {
+    if (!aiSuggestion) return;
+    setAssigneeId(aiSuggestion.userId);
+  }
 
   function parseLabels(input: string) {
     // format: name:color, name2:#RRGGBB
@@ -174,6 +231,59 @@ export default function TaskModal({
                   </option>
                 ))}
               </select>
+              {/* AI Suggestion */}
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={fetchAISuggestion}
+                    disabled={aiLoading}
+                    aria-label="Get AI Suggestion"
+                    title="Get AI Suggestion"
+                  >
+                    {aiLoading ? "Getting suggestion..." : "Get AI Suggestion"}
+                  </Button>
+                  {aiError ? <div className="text-xs text-destructive">{aiError}</div> : null}
+                </div>
+                {aiSuggestion ? (
+                  <div className="rounded-md border bg-muted/30 p-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wand2 className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-muted-foreground">AI Suggestion</span>
+                      </div>
+                      <div className="font-medium">
+                        @
+                        {(members.find((m) => m.id === aiSuggestion.userId)?.name ||
+                          members.find((m) => m.id === aiSuggestion.userId)?.email ||
+                          aiSuggestion.userId) as string}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={applyAISuggestion}
+                        aria-label="Apply AI suggestion"
+                        title="Apply AI suggestion"
+                      >
+                        Apply Suggestion
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={fetchAISuggestion}
+                        title="Refresh suggestion"
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium">Priority</label>

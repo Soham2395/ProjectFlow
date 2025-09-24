@@ -35,6 +35,13 @@ model User {
   // Projects owned by this user
   ownedProjects Project[] @relation("ProjectOwner")
 
+  // AI allocation fields
+  skills        String[]  @default([])
+  workloadScore Float?    @default(0)
+
+  // Back-relation for AI suggestion on Task
+  aiSuggestedTasks Task[] @relation("AISuggestedAssignee")
+
   @@map("users")
 }
 
@@ -135,6 +142,11 @@ model Task {
   comments  Comment[]
   labels    Label[]  @relation("TaskLabels")
   attachments Attachment[]
+
+  // AI allocation suggestion
+  aiSuggestedAssigneeId String?
+  aiSuggestedAssignee   User?    @relation("AISuggestedAssignee", fields: [aiSuggestedAssigneeId], references: [id])
+  allocationConfidence  Float?
 
   @@index([projectId, status, sortOrder])
 }

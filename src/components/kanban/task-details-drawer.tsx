@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, Check, X, Send, Eye, EyeOff } from "lucide-react";
+import { Pencil, Trash2, Check, X, Send, Eye, EyeOff, Wand2 } from "lucide-react";
 import { KanbanTask, KanbanUser } from "./task-card";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -245,6 +245,27 @@ export default function TaskDetailsDrawer({
                     <option key={m.id} value={m.id}>{m.name || m.email || m.id}</option>
                   ))}
                 </select>
+                {local.aiSuggestedAssignee ? (
+                  <div className="mt-2 rounded-md border bg-muted/30 p-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Wand2 className="h-3.5 w-3.5 text-primary" />
+                        <span>AI Suggested</span>
+                      </div>
+                      <div className="font-medium">
+                        @{local.aiSuggestedAssignee.name || local.aiSuggestedAssignee.email || local.aiSuggestedAssignee.id}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <Button
+                        size="sm"
+                        onClick={() => { const id = local.aiSuggestedAssignee?.id || null; if (id) { setLocal({ ...local, assignee: members.find((m) => m.id === id) || null }); patchTask({ assigneeId: id } as any); } }}
+                      >
+                        Accept Suggestion
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <div className="space-y-1">
                 <label className="block text-sm font-medium">Due date</label>
