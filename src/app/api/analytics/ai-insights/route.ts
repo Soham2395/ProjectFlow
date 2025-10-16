@@ -4,6 +4,7 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { detectOverload, getProjectAnalytics } from "@/lib/analytics";
+import { openaiText } from "@/lib/openai";
 
 export async function GET(req: Request) {
   try {
@@ -56,25 +57,16 @@ export async function GET(req: Request) {
     let aiSummary: string | null = null;
     if (provider === "openai" && apiKey) {
       try {
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-            temperature: 0.2,
-            messages: [
-              { role: "system", content: "You are an analytics assistant. Summarize project risks and workload issues succinctly." },
-              { role: "user", content: `Data: ${JSON.stringify({
-                workload: stats.workload,
-                overdue: stats.overdue,
-                completion: stats.completion,
-                velocity: stats.velocity,
-              })}` },
-            ],
-          }),
+        aiSummary = await openaiText({
+          system: "You are an analytics assistant. Summarize project risks and workload issues succinctly.",
+          user: `Data: ${JSON.stringify({
+            workload: stats.workload,
+            overdue: stats.overdue,
+            completion: stats.completion,
+            velocity: stats.velocity,
+          })}`,
+          temperature: 0.2,
         });
-        const data = await res.json();
-        aiSummary = data?.choices?.[0]?.message?.content || null;
       } catch (e) {
         console.warn("[analytics.ai-insights] OpenAI error", e);
       }

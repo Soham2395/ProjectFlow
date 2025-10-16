@@ -12,6 +12,7 @@ import {
   updateTaskNL,
 } from "@/lib/assistant";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { openaiJson } from "@/lib/openai";
 
 type Decision = { action: "getOverdueTasks" | "getProjectStatus" | "getWorkloadDistribution" | "createTask" | "updateTask" | "summarize"; args: any };
 type OpenAIOutcome = { decision: Decision | null; used: "openai-tools" | "openai-json" | "fallback" | "disabled" | "error" };
@@ -20,7 +21,6 @@ async function callOpenAIForDecision(prompt: string): Promise<OpenAIOutcome> {
   const provider = (process.env.AI_ASSISTANT_PROVIDER || "").toLowerCase();
   const apiKey = process.env.OPENAI_API_KEY;
   if (provider !== "openai" || !apiKey) return { decision: null, used: "disabled" };
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   const schema = {
     type: "object",
     properties: {
@@ -51,57 +51,14 @@ async function callOpenAIForDecision(prompt: string): Promise<OpenAIOutcome> {
   } as const;
 
   try {
-    // 1) Try OpenAI Tool (function) calling for structured args
-    const toolRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        temperature: 0,
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "decide",
-              description: "Classify prompt into a project assistant action with arguments",
-              parameters: schema,
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "decide" } },
-        messages: [
-          { role: "system", content: "Classify a project prompt into {action, args}. Allowed actions: getProjectStatus, getOverdueTasks, getWorkloadDistribution, createTask, updateTask, summarize. args: For createTask include title, description, assignee, deadline, priority, labels[]. For updateTask include id (string without #), field (status|priority|assigneeId|title|description|dueDate|labels) and value." },
-          { role: "user", content: prompt },
-        ],
-      }),
+    const parsed = await openaiJson<Decision>({
+      system:
+        "Classify a project prompt into a JSON object matching {action, args}. Allowed actions: getProjectStatus, getOverdueTasks, getWorkloadDistribution, createTask, updateTask, summarize. For createTask include title, description, assignee, deadline, priority, labels[]. For updateTask include id (string without #), field (status|priority|assigneeId|title|description|dueDate|labels) and value.",
+      user: prompt,
+      temperature: 0,
+      schema: schema as any,
     });
-    const toolData = await toolRes.json();
-    const tc = toolData?.choices?.[0]?.message?.tool_calls?.[0];
-    if (tc?.function?.name === "decide") {
-      const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : null;
-      if (args?.action) return { decision: args as Decision, used: "openai-tools" };
-    }
-
-    // 2) Fallback to JSON mode in case tools are not available for the model
-    const jsonRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        response_format: { type: "json_object" },
-        temperature: 0,
-        messages: [
-          { role: "system", content: "Output strictly a JSON object matching {action, args}. Allowed actions: getProjectStatus, getOverdueTasks, getWorkloadDistribution, createTask, updateTask, summarize. For createTask extract title, description, assignee, deadline, priority, labels[]. For updateTask extract id, field (status|priority|assigneeId|title|description|dueDate|labels), value." },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
-    const jsonData = await jsonRes.json();
-    const content = jsonData?.choices?.[0]?.message?.content;
-    if (content) {
-      const parsed = JSON.parse(content);
-      if (parsed?.action) return { decision: parsed as Decision, used: "openai-json" };
-    }
+    if (parsed?.action) return { decision: parsed as Decision, used: "openai-json" };
   } catch (e) {
     console.error("OpenAI decision error", e);
   }
