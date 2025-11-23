@@ -4,6 +4,7 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "node:crypto";
 import { sendInvitationEmail } from "@/lib/mailer";
+import { createNotification } from "@/lib/notifications";
 
 // GET /api/projects - list projects for current user
 export async function GET() {
@@ -102,6 +103,21 @@ export async function POST(req: Request) {
           projectName: project.name,
           invitedBy: session.user.email || session.user.id,
         });
+
+        // If the invited user already exists, send an in-app notification
+        const invitedUser = await prisma.user.findFirst({ where: { email: p.email.toLowerCase() } });
+        if (invitedUser?.id) {
+          await createNotification({
+            userId: invitedUser.id,
+            projectId: project.id,
+            type: "invitation",
+            payload: {
+              projectName: project.name,
+              invitedBy: session.user.email || session.user.id,
+              acceptUrl,
+            },
+          });
+        }
       }
     }
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { createActivity, createNotification } from "@/lib/notifications";
 
 // Helper: ensure the user is a member of the project
 async function requireMember(userId: string, projectId: string) {
@@ -102,6 +103,26 @@ export async function POST(req: Request) {
     },
   });
 
+  // Emit activity and notify assignee if any
+  try {
+    await createActivity({
+      projectId,
+      actorId: session.user.id,
+      verb: "created",
+      targetId: task.id,
+      summary: `Created task "${task.title}"`,
+      meta: { taskId: task.id },
+    });
+    if (task.assigneeId) {
+      await createNotification({
+        userId: task.assigneeId,
+        projectId,
+        type: "task_assigned",
+        payload: { taskId: task.id, title: task.title },
+      });
+    }
+  } catch {}
+
   // Optionally call AI allocation service to suggest an assignee on creation
   try {
     if (process.env.AI_ALLOCATION_ENABLED === "true") {
@@ -181,6 +202,18 @@ export async function PATCH(req: Request) {
       });
     })
   );
+
+  // Record a single activity entry summarizing the batch update
+  try {
+    await createActivity({
+      projectId,
+      actorId: session.user.id,
+      verb: "updated",
+      targetId: null,
+      summary: `Updated ${updates.length} task(s)`,
+      meta: { updates },
+    });
+  } catch {}
 
   return NextResponse.json({ ok: true });
 }
