@@ -58,7 +58,7 @@ export async function GET(req: Request) {
     if (provider === "openai" && apiKey) {
       try {
         aiSummary = await openaiText({
-          system: "You are an analytics assistant. Summarize project risks and workload issues succinctly.",
+          system: "You are an analytics assistant. I want a brief summary of the entire project analytics. Try to summarize t within 200-300 words.",
           user: `Data: ${JSON.stringify({
             workload: stats.workload,
             overdue: stats.overdue,
