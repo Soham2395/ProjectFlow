@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { Server as IOServer, Socket } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
 import { prisma } from '@/lib/prisma';
+import { createActivity } from '@/lib/notifications';
 
 // Augment res.socket.server to include io instance
 interface SocketServer extends HTTPServer {
@@ -26,6 +27,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponseW
       cors: { origin: '*'},
     });
 
+    // Expose globally so App Router API handlers can emit
+    (globalThis as any).__io = io;
+
     io.on('connection', (socket: Socket) => {
       socket.on('joinRoom', async (projectId: string) => {
         if (!projectId) return;
@@ -44,6 +48,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponseW
         }
       });
 
+      // Allow clients to join their own user notification room
+      socket.on('joinUser', (userId: string) => {
+        if (!userId) return;
+        socket.join(`user:${userId}`);
+      });
+
       // sendMessage: broadcast to room and persist
       socket.on('sendMessage', async (payload: {
         projectId: string;
@@ -60,6 +70,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponseW
             include: { sender: true },
           });
           io.to(projectId).emit('message', message);
+          // Emit project activity for chat message
+          await createActivity({
+            projectId,
+            actorId: senderId,
+            verb: 'commented',
+            targetId: null,
+            summary: message.content ? `New message from ${message.sender?.name || message.senderId}` : 'New file shared',
+            meta: { messageId: message.id, fileUrl: message.fileUrl, fileType: message.fileType },
+          });
         } catch (err) {
           console.error('Error creating message', err);
         }

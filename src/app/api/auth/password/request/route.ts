@@ -67,7 +67,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // Send email (uses Resend when configured, else console fallback in dev)
     await sendOtpEmail({ to: email, code: token, expiresInMinutes: 10 });
 
     return NextResponse.json({ ok: true, message: "If an account exists for this email, a 6-digit code has been sent." });

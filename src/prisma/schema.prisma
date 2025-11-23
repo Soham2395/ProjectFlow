@@ -1,4 +1,3 @@
-// Prisma schema for NextAuth with PostgreSQL
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,38 +8,28 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid()) @map("id")
-  name          String?   @map("name")
-  email         String?   @unique @map("email")
-  emailVerified DateTime? @map("email_verified")
-  image         String?   @map("image")
-  password      String?   @map("password")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-
-  accounts  Account[]
-  sessions  Session[]
-
-  // Relations for app domain
-  projects  ProjectMember[]
-  tasks     Task[]    @relation("AssignedTasks")
-  comments  Comment[]
-  // inviter relation (optional)
-  sentInvitations Invitation[] @relation("InvitedByUser")
-  messages ChatMessage[]
-
-  // One-to-one GitHub token relation
-  githubToken GitHubToken?
-
-  // Projects owned by this user
-  ownedProjects Project[] @relation("ProjectOwner")
-
-  // AI allocation fields
-  skills        String[]  @default([])
-  workloadScore Float?    @default(0)
-
-  // Back-relation for AI suggestion on Task
-  aiSuggestedTasks Task[] @relation("AISuggestedAssignee")
+  id               String          @id @default(cuid()) @map("id")
+  name             String?         @map("name")
+  email            String?         @unique @map("email")
+  emailVerified    DateTime?       @map("email_verified")
+  image            String?         @map("image")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  password         String?         @map("password")
+  skills           String[]        @default([])
+  workloadScore    Float?          @default(0)
+  activities       Activity[]
+  messages         ChatMessage[]
+  comments         Comment[]
+  githubToken      GitHubToken?
+  sentInvitations  Invitation[]    @relation("InvitedByUser")
+  notifications    Notification[]
+  ownedProjects    Project[]       @relation("ProjectOwner")
+  projects         ProjectMember[]
+  aiSuggestedTasks Task[]          @relation("AISuggestedAssignee")
+  tasks            Task[]          @relation("AssignedTasks")
+  accounts         Account[]
+  sessions         Session[]
 
   @@map("users")
 }
@@ -51,17 +40,16 @@ model Account {
   type              String   @map("type")
   provider          String   @map("provider")
   providerAccountId String   @map("provider_account_id")
-  refresh_token     String?  @db.Text @map("refresh_token")
-  access_token      String?  @db.Text @map("access_token")
+  refresh_token     String?  @map("refresh_token")
+  access_token      String?  @map("access_token")
   expires_at        Int?     @map("expires_at")
   token_type        String?  @map("token_type")
   scope             String?  @map("scope")
-  id_token          String?  @db.Text @map("id_token")
+  id_token          String?  @map("id_token")
   session_state     String?  @map("session_state")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -74,8 +62,7 @@ model Session {
   expires      DateTime @map("expires")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
 }
@@ -89,66 +76,55 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-// =====================
-// App domain models
-// =====================
-
 model Project {
-  id          String           @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime         @default(now())
-  ownerId     String?
-  owner       User?            @relation("ProjectOwner", fields: [ownerId], references: [id])
-
-  tasks   Task[]
-  members ProjectMember[]
-  invitations Invitation[]
-  messages ChatMessage[]
-
-  // GitHub integration
+  id                       String          @id @default(cuid())
+  name                     String
+  description              String?
+  createdAt                DateTime        @default(now())
+  githubIntegrationEnabled Boolean         @default(false)
   repoName                 String?
   repoOwner                String?
   repoUrl                  String?
-  githubIntegrationEnabled Boolean      @default(false)
+  ownerId                  String?
+  activities               Activity[]
+  messages                 ChatMessage[]
+  invitations              Invitation[]
+  owner                    User?           @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members                  ProjectMember[]
+  tasks                    Task[]
 }
 
 model ProjectMember {
   id        String  @id @default(cuid())
   userId    String
   projectId String
-  role      String  // "admin", "member"
-
-  user    User    @relation(fields: [userId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
+  role      String
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 
   @@unique([userId, projectId])
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  status      String       @default("todo")
-  priority    String       @default("medium")
-  dueDate     DateTime?
-  projectId   String
-  assigneeId  String?
-  createdAt   DateTime     @default(now())
-  // Timestamp when the task was moved to "done". Used for analytics.
-  completedAt DateTime?
-  sortOrder   Int          @default(0)
-
-  project   Project  @relation(fields: [projectId], references: [id])
-  assignee  User?    @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  comments  Comment[]
-  labels    Label[]  @relation("TaskLabels")
-  attachments Attachment[]
-
-  // AI allocation suggestion
+  id                    String       @id @default(cuid())
+  title                 String
+  description           String?
+  status                String       @default("todo")
+  priority              String       @default("medium")
+  dueDate               DateTime?
+  projectId             String
+  assigneeId            String?
+  createdAt             DateTime     @default(now())
+  sortOrder             Int          @default(0)
   aiSuggestedAssigneeId String?
-  aiSuggestedAssignee   User?    @relation("AISuggestedAssignee", fields: [aiSuggestedAssigneeId], references: [id])
   allocationConfidence  Float?
+  completedAt           DateTime?
+  attachments           Attachment[]
+  comments              Comment[]
+  aiSuggestedAssignee   User?        @relation("AISuggestedAssignee", fields: [aiSuggestedAssigneeId], references: [id])
+  assignee              User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  project               Project      @relation(fields: [projectId], references: [id])
+  labels                Label[]      @relation("TaskLabels")
 
   @@index([projectId, status, sortOrder])
 }
@@ -159,16 +135,14 @@ model Comment {
   taskId    String
   userId    String
   createdAt DateTime @default(now())
-
-  task Task @relation(fields: [taskId], references: [id])
-  user User @relation(fields: [userId], references: [id])
+  task      Task     @relation(fields: [taskId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Label {
   id    String @id @default(cuid())
   name  String @unique
   color String
-
   tasks Task[] @relation("TaskLabels")
 }
 
@@ -178,60 +152,80 @@ model Attachment {
   fileType   String
   taskId     String
   uploadedAt DateTime @default(now())
-
-  task Task @relation(fields: [taskId], references: [id])
+  task       Task     @relation(fields: [taskId], references: [id])
 }
 
-// Invitations for project membership that require user acceptance
 model Invitation {
-  id        String   @id @default(cuid())
-  email     String
-  projectId String
-  role      String   @default("member")
-  token     String   @unique
-  status    String   @default("pending") // pending | accepted | revoked | expired
-  invitedBy String?
-  createdAt DateTime @default(now())
-  expiresAt DateTime?
+  id            String    @id @default(cuid())
+  email         String
+  projectId     String
+  role          String    @default("member")
+  token         String    @unique
+  status        String    @default("pending")
+  invitedBy     String?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  invitedByUser User?     @relation("InvitedByUser", fields: [invitedBy], references: [id])
+  project       Project   @relation(fields: [projectId], references: [id])
 
-  project   Project @relation(fields: [projectId], references: [id])
-  invitedByUser User? @relation("InvitedByUser", fields: [invitedBy], references: [id])
-
+  @@unique([email, projectId, status])
   @@index([email])
   @@index([projectId])
-  @@unique([email, projectId, status])
 }
 
-// Real-time chat messages per project
 model ChatMessage {
-  id         String   @id @default(cuid())
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id])
-  senderId   String
-  sender     User     @relation(fields: [senderId], references: [id])
-  content    String?
-  fileUrl    String?
-  fileType   String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  projectId String
+  senderId  String
+  content   String?
+  fileUrl   String?
+  fileType  String?
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id])
 
   @@index([projectId, createdAt])
 }
 
-
-// Secure storage for user's GitHub access token (encrypted at rest)
 model GitHubToken {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique
-  // AES-GCM or similar encryption: store ciphertext and IV separately
-  encryptedAccessToken   String   @db.Text
-  iv                     String   // base64-encoded IV/nonce
-  authTag                String   // base64-encoded GCM auth tag
-  tokenType              String?
-  scope                  String?
-  expiresAt              DateTime?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  encryptedAccessToken String
+  iv                   String
+  authTag              String
+  tokenType            String?
+  scope                String?
+  expiresAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String?
+  type      String
+  payload   Json
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@index([projectId, createdAt])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  projectId String
+  actorId   String?
+  verb      String
+  targetId  String?
+  summary   String
+  meta      Json
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
+
+  @@index([projectId, createdAt])
+}

@@ -18,14 +18,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     orderBy: { createdAt: "desc" },
   });
 
-  // Pending invitations for this user's email
-  const invitations = session.user.email
-    ? await prisma.invitation.findMany({
-        where: { email: session.user.email.toLowerCase(), status: "pending" },
-        include: { project: true },
-        orderBy: { createdAt: "desc" },
-      })
-    : [];
+  // Invitations now surface via Notifications; dashboard no longer lists them
 
   type Member = { user: { id: string; name: string | null; email: string | null; image: string | null }; role: string };
   type ProjectItem = { id: string; name: string; description: string | null; createdAt: Date; members: Member[] };
@@ -74,27 +67,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           ) : null}
         </div>
 
-      {invitations.length > 0 && (
-        <div className="mt-8 rounded-lg border p-5">
-          <h2 className="text-lg font-semibold">Pending invitations</h2>
-          <ul className="mt-3 space-y-3">
-            {invitations.map((inv: { id: string; token: string; project: { name: string; description: string | null } }) => (
-              <li key={inv.id} className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{inv.project.name}</div>
-                  <div className="text-xs text-muted-foreground">{inv.project.description}</div>
-                </div>
-                <a
-                  href={`/invitations/accept?token=${encodeURIComponent(inv.token)}`}
-                  className="text-sm font-medium text-primary underline"
-                >
-                  Accept
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Invitations moved to Notifications */}
       </div>
 
       {projects.length === 0 ? (

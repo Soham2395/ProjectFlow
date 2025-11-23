@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOctokitForUser } from "@/lib/github";
+import { createActivity } from "@/lib/notifications";
 
 // POST /api/github/connect
 // Body: { projectId: string, repoOwner: string, repoName: string, repoUrl?: string }
@@ -57,6 +58,18 @@ export async function POST(request: Request) {
         githubIntegrationEnabled: true,
       },
     });
+
+    // Emit activity entry for linking repository
+    try {
+      await createActivity({
+        projectId,
+        actorId: session.user.id,
+        verb: "linked_repo",
+        targetId: null,
+        summary: `Linked GitHub repo ${repoOwner}/${repoName}`,
+        meta: { repoOwner, repoName, repoUrl: project.repoUrl },
+      });
+    } catch {}
 
     return NextResponse.json({ success: true, project });
   } catch (e: any) {
