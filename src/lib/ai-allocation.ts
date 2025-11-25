@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { openaiJson } from "@/lib/openai";
 
 // Provider-agnostic AI allocation service with simple in-memory cache and feature flag.
 // Minimal payloads are sent to external providers to control costs.
@@ -99,51 +100,32 @@ function heuristicSuggest(input: AllocationInput): AllocationSuggestion {
 async function callOpenAI(_input: AllocationInput): Promise<AllocationSuggestion> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY missing");
-  // To keep costs low, we'll use a structured prompt with minimal fields and a small JSON schema via responses API if available.
-  // Since not all environments have the SDK, and to avoid adding heavy deps, we demonstrate a lightweight fetch call.
-  // NOTE: Replace this with your preferred OpenAI API call. Keep payload minimal.
-  const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini", // cost-effective
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an assistant that selects the best assignee for a software task using skills and workload. Return JSON with userId and confidence (0-1).",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            task: {
-              title: _input.task.title,
-              priority: _input.task.priority,
-              labels: (_input.task.labels || []).map((l) => l.name),
-              dueDate: _input.task.dueDate || null,
-            },
-            team: _input.team.map((m) => ({ id: m.id, skills: m.skills, workloadScore: m.workloadScore })),
-          }),
-        },
-      ],
-      temperature: 0,
-      response_format: { type: "json_object" },
+  const parsed = await openaiJson<{ userId?: string | number; confidence?: number}>({
+    system:
+      "You are an assistant that selects the best assignee for a software task using skills and workload. Return JSON with userId and confidence (0-1).",
+    user: JSON.stringify({
+      task: {
+        title: _input.task.title,
+        priority: _input.task.priority,
+        labels: (_input.task.labels || []).map((l) => l.name),
+        dueDate: _input.task.dueDate || null,
+      },
+      team: _input.team.map((m) => ({ id: m.id, skills: m.skills, workloadScore: m.workloadScore })),
     }),
+    temperature: 0,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        userId: { oneOf: [{ type: "string" }, { type: "number" }] },
+        confidence: { type: "number" },
+      },
+      required: ["userId"],
+    },
   });
-  const data = await resp.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) return null;
-  try {
-    const parsed = JSON.parse(content);
-    if (parsed?.userId) {
-      const conf = typeof parsed.confidence === "number" ? parsed.confidence : 0.6;
-      return { userId: String(parsed.userId), confidence: conf };
-    }
-  } catch {
-    // ignore
+  if (parsed?.userId !== undefined) {
+    const conf = typeof parsed.confidence === "number" ? parsed.confidence : 0.6;
+    return { userId: String(parsed.userId), confidence: conf };
   }
   return null;
 }
