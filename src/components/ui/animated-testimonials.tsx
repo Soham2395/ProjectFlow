@@ -43,8 +43,10 @@ export const AnimatedTestimonials = ({
     }
   }, [autoplay]);
 
-  const randomRotateY = () => {
-    return Math.floor(Math.random() * 21) - 10;
+  const getRotationForIndex = (index: number) => {
+    // Use deterministic rotation based on index to avoid hydration mismatch
+    const rotations = [-10, 7, -5, 10, -8, 5, -3, 8];
+    return rotations[index % rotations.length];
   };
 
   return (
@@ -65,13 +67,13 @@ export const AnimatedTestimonials = ({
                     opacity: 0,
                     scale: 0.9,
                     z: -100 as unknown as number,
-                    rotate: randomRotateY(),
+                    rotate: getRotationForIndex(index),
                   }}
                   animate={{
                     opacity: isActive(index) ? 1 : 0.7,
                     scale: isActive(index) ? 1 : 0.95,
                     z: isActive(index) ? 0 : -100,
-                    rotate: isActive(index) ? 0 : randomRotateY(),
+                    rotate: isActive(index) ? 0 : getRotationForIndex(index),
                     zIndex: isActive(index) ? 30 : 10,
                     y: isActive(index) ? [0, -80, 0] : 0,
                   }}
@@ -79,7 +81,7 @@ export const AnimatedTestimonials = ({
                     opacity: 0,
                     scale: 0.9,
                     z: 100 as unknown as number,
-                    rotate: randomRotateY(),
+                    rotate: getRotationForIndex(index),
                   }}
                   transition={{
                     duration: 0.4,

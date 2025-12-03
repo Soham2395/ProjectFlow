@@ -18,6 +18,9 @@ import Column from "./column";
 import TaskModal from "./task-modal";
 import TaskDetailsDrawer from "./task-details-drawer";
 import { KanbanTask, KanbanUser } from "./task-card";
+import { AdvancedFilterPanel } from "./advanced-filter-panel";
+import { FilterChips } from "./filter-chips";
+import { useFilters } from "@/lib/hooks/use-filters";
 
 export type KanbanBoardProps = {
   projectId: string;
@@ -45,6 +48,22 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // Filter state
+  const { filters, setFilter, clearFilter, clearAllFilters } = useFilters(true);
+
+  // Get all unique labels from tasks
+  const allLabels = useMemo(() => {
+    const labelMap = new Map();
+    tasks.forEach((task) => {
+      task.labels?.forEach((label: any) => {
+        if (!labelMap.has(label.id)) {
+          labelMap.set(label.id, label);
+        }
+      });
+    });
+    return Array.from(labelMap.values());
+  }, [tasks]);
+
   // Refresh tasks after create/edit
   async function refresh() {
     try {
@@ -58,10 +77,64 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
     }
   }
 
+  // Apply filters to tasks
+  const filteredTasks = useMemo(() => {
+    let filtered = [...tasks];
+
+    // Text search
+    if (filters.q) {
+      const query = filters.q.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.title.toLowerCase().includes(query) ||
+          (t.description && t.description.toLowerCase().includes(query))
+      );
+    }
+
+    // Status filter
+    if (filters.status && filters.status.length > 0) {
+      filtered = filtered.filter((t) => filters.status!.includes(t.status));
+    }
+
+    // Priority filter
+    if (filters.priority && filters.priority.length > 0) {
+      filtered = filtered.filter((t) => filters.priority!.includes(t.priority));
+    }
+
+    // Assignee filter
+    if (filters.assigneeId) {
+      filtered = filtered.filter((t) => t.assignee?.id === filters.assigneeId);
+    }
+
+    // Label filter
+    if (filters.labelId) {
+      filtered = filtered.filter((t) =>
+        t.labels?.some((l: any) => l.id === filters.labelId)
+      );
+    }
+
+    // Due date filters
+    if (filters.dueBefore) {
+      const before = new Date(filters.dueBefore);
+      filtered = filtered.filter(
+        (t) => t.dueDate && new Date(t.dueDate) <= before
+      );
+    }
+
+    if (filters.dueAfter) {
+      const after = new Date(filters.dueAfter);
+      filtered = filtered.filter(
+        (t) => t.dueDate && new Date(t.dueDate) >= after
+      );
+    }
+
+    return filtered;
+  }, [tasks, filters]);
+
   // Derived lists
   const columns = useMemo(() => {
     const by = (status: string) =>
-      tasks
+      filteredTasks
         .filter((t) => (t.status || "todo").toLowerCase() === status)
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || new Date(a.createdAt as any).getTime() - new Date(b.createdAt as any).getTime());
     return {
@@ -69,7 +142,7 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
       in_progress: by("in_progress"),
       done: by("done"),
     } as Record<string, KanbanTask[]>;
-  }, [tasks]);
+  }, [filteredTasks]);
 
   function handleAdd(status: string) {
     setEditing({
@@ -176,7 +249,25 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
   }
 
   return (
-    <div className="relative">
+    <div className="relative space-y-4">
+      {/* Filter Panel */}
+      <AdvancedFilterPanel
+        filters={filters}
+        onFilterChange={setFilter}
+        onClearFilters={clearAllFilters}
+        members={members}
+        labels={allLabels}
+      />
+
+      {/* Filter Chips */}
+      <FilterChips
+        filters={filters}
+        onRemoveFilter={clearFilter}
+        onClearAll={clearAllFilters}
+        members={members}
+        labels={allLabels}
+      />
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

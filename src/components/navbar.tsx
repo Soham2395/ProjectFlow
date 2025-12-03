@@ -17,6 +17,7 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getSocket } from "@/lib/socket-client";
+import { GlobalSearch } from "@/components/global-search";
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -46,7 +47,7 @@ export function Navbar() {
           setUnread(data.unread || 0);
           setLatest(data.notifications || []);
         }
-      } catch {}
+      } catch { }
     };
     fetchInitial();
 
@@ -62,7 +63,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+      <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
         {/* Logo */}
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2">
@@ -72,6 +73,13 @@ export function Navbar() {
             <span className="hidden font-bold sm:inline-block">ProjectFlow</span>
           </Link>
         </div>
+
+        {/* Global Search - Only show when authenticated */}
+        {status === "authenticated" && (
+          <div className="hidden flex-1 md:flex md:max-w-md">
+            <GlobalSearch />
+          </div>
+        )}
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
@@ -120,7 +128,7 @@ export function Navbar() {
                       try {
                         await fetch("/api/notifications/mark-read", { method: "POST" });
                         setUnread(0);
-                      } catch {}
+                      } catch { }
                     }}
                   >
                     Mark all read

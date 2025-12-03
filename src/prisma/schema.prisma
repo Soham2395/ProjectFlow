@@ -92,6 +92,9 @@ model Project {
   owner                    User?           @relation("ProjectOwner", fields: [ownerId], references: [id])
   members                  ProjectMember[]
   tasks                    Task[]
+
+  @@index([name])
+  @@index([ownerId])
 }
 
 model ProjectMember {
@@ -127,6 +130,15 @@ model Task {
   labels                Label[]      @relation("TaskLabels")
 
   @@index([projectId, status, sortOrder])
+  @@index([projectId, assigneeId])
+  @@index([projectId, priority])
+  @@index([projectId, status, priority])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([title])
+  @@index([createdAt])
 }
 
 model Comment {
@@ -137,6 +149,10 @@ model Comment {
   createdAt DateTime @default(now())
   task      Task     @relation(fields: [taskId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Label {
