@@ -30,6 +30,7 @@ model User {
   tasks            Task[]          @relation("AssignedTasks")
   accounts         Account[]
   sessions         Session[]
+  attachments      Attachment[]
 
   @@map("users")
 }
@@ -92,6 +93,7 @@ model Project {
   owner                    User?           @relation("ProjectOwner", fields: [ownerId], references: [id])
   members                  ProjectMember[]
   tasks                    Task[]
+  attachments              Attachment[]
 
   @@index([name])
   @@index([ownerId])
@@ -149,6 +151,7 @@ model Comment {
   createdAt DateTime @default(now())
   task      Task     @relation(fields: [taskId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+  attachments Attachment[]
 
   @@index([taskId])
   @@index([userId])
@@ -165,10 +168,30 @@ model Label {
 model Attachment {
   id         String   @id @default(cuid())
   url        String
+  fileName   String
   fileType   String
-  taskId     String
-  uploadedAt DateTime @default(now())
-  task       Task     @relation(fields: [taskId], references: [id])
+  fileSize   Int      @default(0)
+  publicId   String?  // Cloudinary public_id for deletion
+  
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  taskId     String?
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  commentId  String?
+  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  uploadedBy String
+  user       User     @relation(fields: [uploadedBy], references: [id])
+  
+  createdAt  DateTime @default(now())
+
+  @@index([projectId])
+  @@index([taskId])
+  @@index([commentId])
+  @@index([uploadedBy])
+  @@index([createdAt])
 }
 
 model Invitation {

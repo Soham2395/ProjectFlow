@@ -54,6 +54,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           <Link href={`/project/${projectId}/reports`}>
             <Button variant="ghost">Reports</Button>
           </Link>
+          <Link href={`/project/${projectId}/files`}>
+            <Button variant="ghost">Files</Button>
+          </Link>
           <Link href={`/project/${projectId}/commits`}>
             <Button variant="ghost">Commits</Button>
           </Link>
