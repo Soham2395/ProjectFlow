@@ -24,7 +24,7 @@ export function getTransporter() {
       auth: { user: SMTP_USER!, pass: SMTP_PASS! },
     });
     // Verify connection configuration (non-blocking diagnostics)
-    transporter.verify((error, success) => {
+    transporter.verify((error) => {
       if (error) {
         console.error('[mailer] SMTP verify failed:', error);
       } else {

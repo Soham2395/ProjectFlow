@@ -14,7 +14,9 @@ const getKey = (): Buffer => {
     try {
       const b64 = Buffer.from(raw, "base64");
       if (b64.length === 32) return b64;
-    } catch (_) { /* ignore */ }
+    } catch {
+      // ignore - will fall through to next check
+    }
     key = Buffer.from(raw);
   } else {
     key = Buffer.from(raw);

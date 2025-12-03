@@ -1,10 +1,10 @@
+"use client";
+
 import { useRef, useState } from "react";
-import { Upload, X, File as FileIcon, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Upload, X, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useFileUpload } from "@/lib/hooks/use-file-upload";
 import { cn } from "@/lib/utils";
-import { formatFileSize } from "@/lib/file-utils";
 
 interface FileUploadProps {
     projectId: string;

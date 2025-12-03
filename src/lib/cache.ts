@@ -22,13 +22,6 @@ async function upstashFetch<T = any>(body: any): Promise<T | null> {
 }
 
 export async function cacheGet(key: string): Promise<any | null> {
-  const data = (await upstashFetch({
-    // Upstash Redis REST pipeline style
-    // Single command: GET key
-    // Ref: https://upstash.com/docs/redis/features/restapi
-    // For simplicity using single-command API
-    // But the REST api expects array of commands, using /pipeline isn't necessary anymore
-  })) as any;
   // Fallback to single-command endpoint
   if (!enabled()) return null;
   const res = await fetch(`${URL}/get/${encodeURIComponent(key)}`, {

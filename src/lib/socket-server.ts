@@ -5,7 +5,6 @@ import type { Server as IOServer } from 'socket.io';
 // pages/api/socket.ts should set globalThis.__io = io
 
 declare global {
-  // eslint-disable-next-line no-var
   var __io: IOServer | undefined;
 }
 

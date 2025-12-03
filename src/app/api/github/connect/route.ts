@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         summary: `Linked GitHub repo ${repoOwner}/${repoName}`,
         meta: { repoOwner, repoName, repoUrl: project.repoUrl },
       });
-    } catch {}
+    } catch { }
 
     return NextResponse.json({ success: true, project });
   } catch (e: any) {
