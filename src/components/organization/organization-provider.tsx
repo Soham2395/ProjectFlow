@@ -43,7 +43,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         }
 
         try {
-            const res = await fetch("/api/organizations", { cache: "no-store" });
+            const res = await fetch("/api/organizations", { next: { revalidate: 60 } });
             if (res.ok) {
                 const data = await res.json();
                 setOrganizations(data.organizations || []);

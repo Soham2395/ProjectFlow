@@ -64,7 +64,9 @@ export default function TaskDetailsDrawer({
     if (open && task) {
       setLocal({ ...task });
       // fetch comments
-      fetch(`/api/tasks/${task.id}/comments`, { cache: "no-store" })
+      fetch(`/api/tasks/${task.id}/comments`, {
+        next: { revalidate: 20 } // Cache for 20 seconds
+      })
         .then((r) => r.json())
         .then((data) => setComments(data.comments || []))
         .catch(() => setComments([]));

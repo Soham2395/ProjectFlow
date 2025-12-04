@@ -8,7 +8,7 @@ export default async function ProjectActivityPage({ params }: { params: Promise<
   if (!session?.user?.id) redirect("/");
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/activity/project/${projectId}`, {
-    cache: "no-store",
+    next: { revalidate: 30 }, // Cache for 30 seconds
     headers: { "cookie": "" },
   }).catch(() => null);
   const data = res && res.ok ? await res.json() : { activity: [] };

@@ -40,7 +40,9 @@ export function Navbar() {
 
     const fetchInitial = async () => {
       try {
-        const res = await fetch(`/api/notifications?status=all&limit=10`, { cache: "no-store" });
+        const res = await fetch(`/api/notifications?status=all&limit=10`, {
+          next: { revalidate: 30 } // Cache for 30 seconds
+        });
         const data = await res.json();
         if (res.ok) {
           setUnread(data.unread || 0);

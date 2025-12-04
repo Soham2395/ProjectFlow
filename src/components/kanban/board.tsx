@@ -67,7 +67,9 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
   // Refresh tasks after create/edit
   async function refresh() {
     try {
-      const res = await fetch(`/api/tasks?projectId=${projectId}`, { cache: "no-store" });
+      const res = await fetch(`/api/tasks?projectId=${projectId}`, {
+        next: { revalidate: 15 } // Cache for 15 seconds - tasks change frequently
+      });
       const data = await res.json();
       if (res.ok) {
         setTasks((data.tasks || []).map((t: KanbanTask) => ({ ...t, status: t.status.toLowerCase() })));

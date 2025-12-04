@@ -26,7 +26,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
 
   const cookieStore = await cookies();
   const res = await fetch(`${origin}/api/notifications?${qs.toString()}`, {
-    cache: "no-store",
+    next: { revalidate: 10 }, // Cache for 10 seconds
     headers: { cookie: cookieStore.toString() },
   });
   const data = res && res.ok ? await res.json() : { notifications: [], unread: 0, nextCursor: null };
