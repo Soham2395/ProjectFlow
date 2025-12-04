@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
+import crypto from "crypto";
 import {
     assertOrgAccess,
     getOrganizationMembers,
@@ -124,7 +125,6 @@ export async function POST(req: Request, { params }: { params: Params }) {
             }
 
             try {
-                const crypto = require('crypto');
                 const token = crypto.randomBytes(32).toString('hex');
                 const expiresAt = new Date();
                 expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
