@@ -11,14 +11,16 @@ export type NotificationType =
 export async function createNotification(input: {
   userId: string;
   projectId?: string | null;
+  organizationId?: string | null;
   type: NotificationType | string;
   payload: Record<string, unknown>;
 }) {
-  const { userId, projectId = null, type, payload } = input;
+  const { userId, projectId = null, organizationId = null, type, payload } = input;
   const notif = await prisma.notification.create({
     data: {
       userId,
       projectId,
+      organizationId,
       type,
       payload: payload as any,
     },
@@ -50,16 +52,18 @@ export async function markNotificationsRead(input: {
 
 export async function createActivity(input: {
   projectId: string;
+  organizationId: string;
   actorId?: string | null;
   verb: string;
   targetId?: string | null;
   summary: string;
   meta?: Record<string, unknown>;
 }) {
-  const { projectId, actorId = null, verb, targetId = null, summary, meta = {} } = input;
+  const { projectId, organizationId, actorId = null, verb, targetId = null, summary, meta = {} } = input;
   const activity = await prisma.activity.create({
     data: {
       projectId,
+      organizationId,
       actorId,
       verb,
       targetId,

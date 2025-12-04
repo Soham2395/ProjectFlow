@@ -6,16 +6,45 @@ import crypto from "node:crypto";
 import { sendInvitationEmail } from "@/lib/mailer";
 import { createNotification } from "@/lib/notifications";
 
-// GET /api/projects - list projects for current user
-export async function GET() {
+// GET /api/projects - list projects for current user (optionally filtered by org/workspace)
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const url = new URL(req.url);
+  const organizationId = url.searchParams.get("organizationId");
+  const workspaceId = url.searchParams.get("workspaceId");
+
+  const whereClause: any = {
+    members: { some: { userId: session.user.id } },
+  };
+
+  if (organizationId) {
+    whereClause.organizationId = organizationId;
+  }
+
+  if (workspaceId) {
+    whereClause.workspaceId = workspaceId;
+  }
+
   const projects = await prisma.project.findMany({
-    where: { members: { some: { userId: session.user.id } } },
+    where: whereClause,
     include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       members: {
         include: { user: { select: { id: true, name: true, email: true, image: true } } },
       },
@@ -34,14 +63,47 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, memberEmails } = body as {
+  const { name, description, memberEmails, organizationId, workspaceId } = body as {
     name?: string;
     description?: string | null;
     memberEmails?: string[];
+    organizationId?: string;
+    workspaceId?: string;
   };
 
   if (!name || name.trim().length === 0) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
+  }
+
+  if (!organizationId) {
+    return NextResponse.json({ error: "organizationId is required" }, { status: 400 });
+  }
+
+  // Import org permissions after defining the route
+  const { assertOrgAccess } = await import("@/lib/org-permissions");
+
+  try {
+    // Verify user has access to the organization (member or higher)
+    await assertOrgAccess(session.user.id, organizationId, "member");
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+
+  // If workspaceId is provided, verify it belongs to the organization
+  if (workspaceId) {
+    const workspace = await prisma.workspace.findFirst({
+      where: {
+        id: workspaceId,
+        organizationId,
+      },
+    });
+
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Workspace not found or doesn't belong to this organization" },
+        { status: 400 }
+      );
+    }
   }
 
   const project = await prisma.project.create({
@@ -49,11 +111,26 @@ export async function POST(req: Request) {
       name: name.trim(),
       description: description?.trim() || null,
       ownerId: session.user.id,
+      organizationId,
+      workspaceId: workspaceId || null,
       members: {
         create: [{ userId: session.user.id, role: "admin" }],
       },
     },
     include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       members: { include: { user: { select: { id: true, name: true, email: true, image: true } } } },
       invitations: true,
     },
@@ -77,6 +154,7 @@ export async function POST(req: Request) {
             create: {
               email,
               projectId: project.id,
+              organizationId, // Add organizationId to invitation
               role: "member",
               token: crypto.randomUUID(),
               status: "pending",
@@ -125,7 +203,23 @@ export async function POST(req: Request) {
   // Re-fetch project with updated invitations
   const updated = await prisma.project.findUnique({
     where: { id: project.id },
-    include: { members: { include: { user: { select: { id: true, name: true, email: true, image: true } } } }, invitations: true },
+    include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      members: { include: { user: { select: { id: true, name: true, email: true, image: true } } } },
+      invitations: true,
+    },
   });
 
   return NextResponse.json({ project: updated }, { status: 201 });

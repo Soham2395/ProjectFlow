@@ -63,6 +63,16 @@ export async function POST(req: Request) {
   const isMember = await requireMember(session.user.id, projectId);
   if (!isMember) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Get the project's organizationId for activity tracking
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { organizationId: true },
+  });
+
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
   const normalizedStatus = (status || "todo").toLowerCase();
   const normalizedPriority = (priority || "medium").toLowerCase();
 
@@ -87,13 +97,13 @@ export async function POST(req: Request) {
       // labels relation: connect or create by name
       ...(Array.isArray(labels) && labels.length
         ? {
-            labels: {
-              connectOrCreate: labels.map((l) => ({
-                where: { name: l.name.trim() },
-                create: { name: l.name.trim(), color: l.color || "#666" },
-              })),
-            },
-          }
+          labels: {
+            connectOrCreate: labels.map((l) => ({
+              where: { name: l.name.trim() },
+              create: { name: l.name.trim(), color: l.color || "#666" },
+            })),
+          },
+        }
         : {}),
     },
     include: {
@@ -107,6 +117,7 @@ export async function POST(req: Request) {
   try {
     await createActivity({
       projectId,
+      organizationId: project.organizationId,
       actorId: session.user.id,
       verb: "created",
       targetId: task.id,
@@ -117,11 +128,12 @@ export async function POST(req: Request) {
       await createNotification({
         userId: task.assigneeId,
         projectId,
+        organizationId: project.organizationId,
         type: "task_assigned",
         payload: { taskId: task.id, title: task.title },
       });
     }
-  } catch {}
+  } catch { }
 
   // Optionally call AI allocation service to suggest an assignee on creation
   try {
@@ -189,6 +201,16 @@ export async function PATCH(req: Request) {
   const isMember = await requireMember(session.user.id, projectId);
   if (!isMember) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  // Get the project's organizationId for activity tracking
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { organizationId: true },
+  });
+
+  if (!project) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
   await prisma.$transaction(
     updates.map((u) => {
       const next = u.status.toLowerCase();
@@ -207,13 +229,14 @@ export async function PATCH(req: Request) {
   try {
     await createActivity({
       projectId,
+      organizationId: project.organizationId,
       actorId: session.user.id,
       verb: "updated",
       targetId: null,
       summary: `Updated ${updates.length} task(s)`,
       meta: { updates },
     });
-  } catch {}
+  } catch { }
 
   return NextResponse.json({ ok: true });
 }

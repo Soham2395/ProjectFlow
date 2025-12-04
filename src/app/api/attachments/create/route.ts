@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         // Also allow project owner
         const project = await prisma.project.findUnique({
             where: { id: projectId },
-            select: { ownerId: true },
+            select: { ownerId: true, organizationId: true },
         });
 
         if (!membership && project?.ownerId !== session.user.id) {
@@ -52,10 +52,18 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        if (!project) {
+            return NextResponse.json(
+                { error: "Project not found" },
+                { status: 404 }
+            );
+        }
+
         // Create attachment record
         const attachment = await prisma.attachment.create({
             data: {
                 projectId,
+                organizationId: project.organizationId,
                 taskId,
                 commentId,
                 url,

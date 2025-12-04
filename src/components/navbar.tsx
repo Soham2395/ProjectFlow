@@ -12,16 +12,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { OrgSwitcher } from "@/components/organization";
 import { BarChart3, Bell, LayoutDashboard, Menu } from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getSocket } from "@/lib/socket-client";
 import { GlobalSearch } from "@/components/global-search";
 
 export function Navbar() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const socket = useMemo(() => getSocket(), []);
   const [unread, setUnread] = useState<number>(0);
   const [latest, setLatest] = useState<Array<{ id: string; type: string; createdAt: string; payload: any }>>([]);
@@ -64,7 +63,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
-        {/* Logo */}
+        {/* Logo + Org Switcher */}
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -72,6 +71,7 @@ export function Navbar() {
             </div>
             <span className="hidden font-bold sm:inline-block">ProjectFlow</span>
           </Link>
+          {status === "authenticated" && <OrgSwitcher />}
         </div>
 
         {/* Global Search - Only show when authenticated */}

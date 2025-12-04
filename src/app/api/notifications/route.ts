@@ -31,6 +31,9 @@ export async function GET(request: Request) {
         take: 20,
       });
       for (const inv of invites) {
+        // Skip if no project (org-only invitations handled separately)
+        if (!inv.project) continue;
+
         // Avoid duplicate in-app notifications for the same project invite
         const existing = await prisma.notification.findFirst({
           where: { userId: session.user.id, projectId: inv.projectId, type: "invitation" },

@@ -31,6 +31,7 @@ model User {
   accounts         Account[]
   sessions         Session[]
   attachments      Attachment[]
+  organizationMemberships OrganizationMember[]
 
   @@map("users")
 }
@@ -77,6 +78,57 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+model Organization {
+  id        String               @id @default(cuid())
+  name      String
+  slug      String?              @unique
+  settings  Json?                // AI limits, billing, usage quotas, etc.
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  members   OrganizationMember[]
+  workspaces Workspace[]
+  projects  Project[]
+  invitations Invitation[]
+  notifications Notification[]
+  activities Activity[]
+  chatMessages ChatMessage[]
+  attachments Attachment[]
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String       // "owner", "admin", "member", "viewer"
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([organizationId, role])
+  @@map("organization_members")
+}
+
+model Workspace {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  organizationId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects       Project[]
+
+  @@index([organizationId])
+  @@map("workspaces")
+}
+
 model Project {
   id                       String          @id @default(cuid())
   name                     String
@@ -87,15 +139,21 @@ model Project {
   repoOwner                String?
   repoUrl                  String?
   ownerId                  String?
+  organizationId           String
+  workspaceId              String?
   activities               Activity[]
   messages                 ChatMessage[]
   invitations              Invitation[]
   owner                    User?           @relation("ProjectOwner", fields: [ownerId], references: [id])
+  organization             Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace                Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   members                  ProjectMember[]
   tasks                    Task[]
   attachments              Attachment[]
 
-  @@index([name])
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, name])
   @@index([ownerId])
 }
 
@@ -173,8 +231,10 @@ model Attachment {
   fileSize   Int      @default(0)
   publicId   String?  // Cloudinary public_id for deletion
   
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String
+  organizationId String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
   taskId     String?
   task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -188,6 +248,7 @@ model Attachment {
   createdAt  DateTime @default(now())
 
   @@index([projectId])
+  @@index([organizationId])
   @@index([taskId])
   @@index([commentId])
   @@index([uploadedBy])
@@ -195,35 +256,40 @@ model Attachment {
 }
 
 model Invitation {
-  id            String    @id @default(cuid())
-  email         String
-  projectId     String
-  role          String    @default("member")
-  token         String    @unique
-  status        String    @default("pending")
-  invitedBy     String?
-  createdAt     DateTime  @default(now())
-  expiresAt     DateTime?
-  invitedByUser User?     @relation("InvitedByUser", fields: [invitedBy], references: [id])
-  project       Project   @relation(fields: [projectId], references: [id])
+  id             String        @id @default(cuid())
+  email          String
+  projectId      String?
+  organizationId String?
+  role           String        @default("member")
+  token          String        @unique
+  status         String        @default("pending")
+  invitedBy      String?
+  createdAt      DateTime      @default(now())
+  expiresAt      DateTime?
+  invitedByUser  User?         @relation("InvitedByUser", fields: [invitedBy], references: [id])
+  project        Project?      @relation(fields: [projectId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
-  @@unique([email, projectId, status])
   @@index([email])
   @@index([projectId])
+  @@index([organizationId])
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  projectId String
-  senderId  String
-  content   String?
-  fileUrl   String?
-  fileType  String?
-  createdAt DateTime @default(now())
-  project   Project  @relation(fields: [projectId], references: [id])
-  sender    User     @relation(fields: [senderId], references: [id])
+  id             String       @id @default(cuid())
+  projectId      String
+  organizationId String
+  senderId       String
+  content        String?
+  fileUrl        String?
+  fileType       String?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project        Project      @relation(fields: [projectId], references: [id])
+  sender         User         @relation(fields: [senderId], references: [id])
 
   @@index([projectId, createdAt])
+  @@index([organizationId, projectId])
 }
 
 model GitHubToken {
@@ -241,30 +307,36 @@ model GitHubToken {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  projectId String?
-  type      String
-  payload   Json
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  id             String        @id @default(cuid())
+  userId         String
+  projectId      String?
+  organizationId String?
+  type           String
+  payload        Json
+  isRead         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
   @@index([userId, isRead, createdAt])
   @@index([projectId, createdAt])
+  @@index([organizationId, createdAt])
 }
 
 model Activity {
-  id        String   @id @default(cuid())
-  projectId String
-  actorId   String?
-  verb      String
-  targetId  String?
-  summary   String
-  meta      Json
-  createdAt DateTime @default(now())
-  actor     User?    @relation(fields: [actorId], references: [id])
-  project   Project  @relation(fields: [projectId], references: [id])
+  id             String       @id @default(cuid())
+  projectId      String
+  organizationId String
+  actorId        String?
+  verb           String
+  targetId       String?
+  summary        String
+  meta           Json
+  createdAt      DateTime     @default(now())
+  actor          User?        @relation(fields: [actorId], references: [id])
+  project        Project      @relation(fields: [projectId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([projectId, createdAt])
+  @@index([organizationId, createdAt])
 }

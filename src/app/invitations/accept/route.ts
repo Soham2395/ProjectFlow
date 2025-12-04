@@ -27,13 +27,58 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL(`/dashboard?inviteError=email_mismatch`, url.origin));
   }
 
-  await prisma.projectMember.upsert({
-    where: { userId_projectId: { userId: session.user.id, projectId: invite.projectId } } as any,
-    update: {},
-    create: { userId: session.user.id, projectId: invite.projectId, role: invite.role || "member" },
-  });
+  // Handle organization-only invitations
+  if (invite.organizationId && !invite.projectId) {
+    await prisma.organizationMember.upsert({
+      where: {
+        userId_organizationId: {
+          userId: session.user.id,
+          organizationId: invite.organizationId,
+        },
+      },
+      update: {},
+      create: {
+        userId: session.user.id,
+        organizationId: invite.organizationId,
+        role: invite.role || "member",
+      },
+    });
 
-  await prisma.invitation.update({ where: { id: invite.id }, data: { status: "accepted" } });
+    await prisma.invitation.update({ where: { id: invite.id }, data: { status: "accepted" } });
+    return NextResponse.redirect(new URL(`/org/${invite.organizationId}`, url.origin));
+  }
 
-  return NextResponse.redirect(new URL(`/project/${invite.projectId}`, url.origin));
+  // Handle project invitations
+  if (invite.projectId) {
+    await prisma.projectMember.upsert({
+      where: { userId_projectId: { userId: session.user.id, projectId: invite.projectId } } as any,
+      update: {},
+      create: { userId: session.user.id, projectId: invite.projectId, role: invite.role || "member" },
+    });
+
+    // Also add to organization if applicable
+    if (invite.organizationId) {
+      await prisma.organizationMember.upsert({
+        where: {
+          userId_organizationId: {
+            userId: session.user.id,
+            organizationId: invite.organizationId,
+          },
+        },
+        update: {},
+        create: {
+          userId: session.user.id,
+          organizationId: invite.organizationId,
+          role: "member",
+        },
+      });
+    }
+
+    await prisma.invitation.update({ where: { id: invite.id }, data: { status: "accepted" } });
+    return NextResponse.redirect(new URL(`/project/${invite.projectId}`, url.origin));
+  }
+
+  // Fallback for invalid invitations
+  return NextResponse.redirect(new URL("/dashboard?inviteError=invalid_invitation", url.origin));
 }
+

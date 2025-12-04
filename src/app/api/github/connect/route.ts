@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     try {
       await createActivity({
         projectId,
+        organizationId: projectRecord.organizationId,
         actorId: session.user.id,
         verb: "linked_repo",
         targetId: null,

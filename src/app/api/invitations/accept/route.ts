@@ -24,16 +24,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "This invitation is not for your email" }, { status: 403 });
   }
 
-  // Create membership if not exists
-  await prisma.projectMember.upsert({
-    where: { userId_projectId: { userId: session.user.id, projectId: invite.projectId } } as any,
-    update: {},
-    create: { userId: session.user.id, projectId: invite.projectId, role: invite.role || "member" },
-  });
+  // Handle organization-level invitations (when organizationId is set but projectId is null)
+  if (invite.organizationId && !invite.projectId) {
+    // Add user to organization
+    await prisma.organizationMember.upsert({
+      where: {
+        userId_organizationId: {
+          userId: session.user.id,
+          organizationId: invite.organizationId,
+        },
+      },
+      update: {},
+      create: {
+        userId: session.user.id,
+        organizationId: invite.organizationId,
+        role: invite.role || "member",
+      },
+    });
+  } else if (invite.projectId) {
+    // Handle project-level invitations
+    // Create project membership if not exists
+    await prisma.projectMember.upsert({
+      where: { userId_projectId: { userId: session.user.id, projectId: invite.projectId } } as any,
+      update: {},
+      create: { userId: session.user.id, projectId: invite.projectId, role: invite.role || "member" },
+    });
+
+    // Also add user to the organization if not already a member
+    if (invite.organizationId) {
+      await prisma.organizationMember.upsert({
+        where: {
+          userId_organizationId: {
+            userId: session.user.id,
+            organizationId: invite.organizationId,
+          },
+        },
+        update: {},
+        create: {
+          userId: session.user.id,
+          organizationId: invite.organizationId,
+          role: "member", // Project invites add user as org member
+        },
+      });
+    }
+  }
 
   await prisma.invitation.update({ where: { id: invite.id }, data: { status: "accepted" } });
 
-  return NextResponse.json({ ok: true, projectId: invite.projectId });
+  return NextResponse.json({ ok: true, projectId: invite.projectId, organizationId: invite.organizationId });
 }
 
 // GET /api/invitations/accept?token=...
@@ -61,13 +99,56 @@ export async function GET(req: Request) {
     return NextResponse.redirect(new URL(`/dashboard?inviteError=email_mismatch`, url.origin));
   }
 
-  await prisma.projectMember.upsert({
-    where: { userId_projectId: { userId: session.user.id, projectId: invite.projectId } } as any,
-    update: {},
-    create: { userId: session.user.id, projectId: invite.projectId, role: invite.role || "member" },
-  });
+  // Handle organization-level invitations (when organizationId is set but projectId is null)
+  if (invite.organizationId && !invite.projectId) {
+    await prisma.organizationMember.upsert({
+      where: {
+        userId_organizationId: {
+          userId: session.user.id,
+          organizationId: invite.organizationId,
+        },
+      },
+      update: {},
+      create: {
+        userId: session.user.id,
+        organizationId: invite.organizationId,
+        role: invite.role || "member",
+      },
+    });
 
-  await prisma.invitation.update({ where: { id: invite.id }, data: { status: "accepted" } });
+    await prisma.invitation.update({ where: { id: invite.id }, data: { status: "accepted" } });
+    return NextResponse.redirect(new URL(`/org/${invite.organizationId}`, url.origin));
+  } else if (invite.projectId) {
+    // Handle project-level invitations
+    await prisma.projectMember.upsert({
+      where: { userId_projectId: { userId: session.user.id, projectId: invite.projectId } } as any,
+      update: {},
+      create: { userId: session.user.id, projectId: invite.projectId, role: invite.role || "member" },
+    });
 
-  return NextResponse.redirect(new URL(`/project/${invite.projectId}`, url.origin));
+    // Also add user to the organization if not already a member
+    if (invite.organizationId) {
+      await prisma.organizationMember.upsert({
+        where: {
+          userId_organizationId: {
+            userId: session.user.id,
+            organizationId: invite.organizationId,
+          },
+        },
+        update: {},
+        create: {
+          userId: session.user.id,
+          organizationId: invite.organizationId,
+          role: "member",
+        },
+      });
+    }
+
+    await prisma.invitation.update({ where: { id: invite.id }, data: { status: "accepted" } });
+    return NextResponse.redirect(new URL(`/project/${invite.projectId}`, url.origin));
+  }
+
+  // Fallback if neither project nor org is set (shouldn't happen)
+  return NextResponse.redirect(new URL("/dashboard?inviteError=invalid_invitation", url.origin));
 }
+

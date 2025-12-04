@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponseW
     const io = new IOServer(res.socket.server, {
       path: '/api/socket',
       addTrailingSlash: false,
-      cors: { origin: '*'},
+      cors: { origin: '*' },
     });
 
     // Expose globally so App Router API handlers can emit
@@ -65,14 +65,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponseW
         const { projectId, senderId, content, fileUrl, fileType } = payload || {} as any;
         if (!projectId || !senderId || (!content && !fileUrl)) return;
         try {
+          // Get project's organizationId
+          const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { organizationId: true },
+          });
+
+          if (!project) return;
+
           const message = await prisma.chatMessage.create({
-            data: { projectId, senderId, content: content ?? null, fileUrl: fileUrl ?? null, fileType: fileType ?? null },
+            data: {
+              projectId,
+              organizationId: project.organizationId,
+              senderId,
+              content: content ?? null,
+              fileUrl: fileUrl ?? null,
+              fileType: fileType ?? null,
+            },
             include: { sender: true },
           });
           io.to(projectId).emit('message', message);
           // Emit project activity for chat message
           await createActivity({
             projectId,
+            organizationId: project.organizationId,
             actorId: senderId,
             verb: 'commented',
             targetId: null,
