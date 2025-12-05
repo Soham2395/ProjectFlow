@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,11 @@ import { KanbanTask, KanbanUser } from "./task-card";
 import { FileUpload } from "@/components/upload/file-upload";
 import { AttachmentList } from "@/components/upload/attachment-list";
 import { CommentAttachment } from "@/components/upload/comment-attachment";
+import { useTaskPresence } from "@/hooks/use-task-presence";
+import { useTypingIndicator } from "@/hooks/use-typing-indicator";
+import { ViewingIndicator } from "@/components/presence/viewing-indicator";
+import { EditingIndicator } from "@/components/presence/editing-indicator";
+import { TypingIndicator } from "@/components/presence/typing-indicator";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 const STATUSES = [
@@ -28,6 +34,7 @@ export default function TaskDetailsDrawer({
   onTaskUpdated: (updated: Partial<KanbanTask>) => void;
   members: KanbanUser[];
 }) {
+  const { data: session } = useSession();
   const [local, setLocal] = useState<KanbanTask | null>(null);
   const [descMode, setDescMode] = useState<"edit" | "preview">("edit");
   const [saving, setSaving] = useState(false);
@@ -59,6 +66,26 @@ export default function TaskDetailsDrawer({
     () => ((local?.labels || []).map((l) => `${l.name}:${l.color}`).join(", ") || ""),
     [local?.labels]
   );
+
+  // Presence tracking
+  const projectId = (task as any)?.projectId || '';
+  const { otherViewers, otherEditors, startEditing, stopEditing } = useTaskPresence({
+    taskId: task?.id || '',
+    projectId,
+    userId: session?.user?.id || '',
+    userName: session?.user?.name || null,
+    userImage: session?.user?.image || null,
+    enabled: open && !!task?.id && !!session?.user?.id,
+  });
+
+  const { typingMessage, emitTyping, stopTyping } = useTypingIndicator({
+    projectId,
+    taskId: task?.id,
+    userId: session?.user?.id || '',
+    userName: session?.user?.name || null,
+    context: 'comment',
+    enabled: open && !!task?.id && !!session?.user?.id,
+  });
 
   useEffect(() => {
     if (open && task) {
@@ -257,7 +284,11 @@ export default function TaskDetailsDrawer({
           <input
             value={local.title}
             onChange={(e) => setLocal({ ...local, title: e.target.value })}
-            onBlur={() => patchTask({ title: local.title })}
+            onFocus={startEditing}
+            onBlur={() => {
+              stopEditing();
+              patchTask({ title: local.title });
+            }}
             className="w-full rounded-md border bg-transparent px-3 py-2 text-lg font-semibold outline-none focus:ring-2 focus:ring-primary"
             placeholder="Task title"
           />
@@ -288,6 +319,20 @@ export default function TaskDetailsDrawer({
           </button>
         </div>
 
+        {/* Presence Indicators */}
+        {(otherViewers.length > 0 || otherEditors.length > 0) && (
+          <div className="border-b bg-muted/30 px-4 py-2">
+            <div className="flex flex-wrap items-center gap-3">
+              {otherViewers.length > 0 && (
+                <ViewingIndicator viewers={otherViewers} />
+              )}
+              {otherEditors.length > 0 && otherEditors[0] && (
+                <EditingIndicator editor={otherEditors[0]} />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <div className="grid h-full grid-cols-1 gap-6 overflow-y-auto p-5 md:grid-cols-12">
           {/* Left column */}
@@ -310,7 +355,11 @@ export default function TaskDetailsDrawer({
                   className="min-h-[160px] w-full rounded-md border bg-transparent p-3 text-sm outline-none focus:ring-2 focus:ring-primary"
                   value={(local.description as any) || ""}
                   onChange={(e) => setLocal({ ...local, description: e.target.value })}
-                  onBlur={() => patchTask({ description: local.description || "" })}
+                  onFocus={startEditing}
+                  onBlur={() => {
+                    stopEditing();
+                    patchTask({ description: local.description || "" });
+                  }}
                   placeholder="Write description in Markdown..."
                 />
               ) : (
@@ -583,11 +632,21 @@ export default function TaskDetailsDrawer({
                   />
                 </div>
               )}
+              {/* Typing indicator */}
+              {typingMessage && (
+                <div className="mb-2">
+                  <TypingIndicator message={typingMessage} />
+                </div>
+              )}
               <div className="flex items-start gap-2">
                 <textarea
                   className="h-20 flex-1 rounded-md border bg-transparent p-2 text-sm outline-none focus:ring-2 focus:ring-primary"
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  onChange={(e) => {
+                    setNewComment(e.target.value);
+                    emitTyping();
+                  }}
+                  onBlur={stopTyping}
                   placeholder="Write a comment..."
                 />
                 <div className="flex flex-col gap-2">

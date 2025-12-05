@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   DndContext,
   DragEndEvent,
@@ -21,6 +22,8 @@ import { KanbanTask, KanbanUser } from "./task-card";
 import { AdvancedFilterPanel } from "./advanced-filter-panel";
 import { FilterChips } from "./filter-chips";
 import { useFilters } from "@/lib/hooks/use-filters";
+import { usePresence } from "@/hooks/use-presence";
+import { ViewingIndicator } from "@/components/presence/viewing-indicator";
 
 export type KanbanBoardProps = {
   projectId: string;
@@ -35,6 +38,7 @@ const STATUS_INFO: { id: string; title: string }[] = [
 ];
 
 export default function KanbanBoard({ projectId, initialTasks, members }: KanbanBoardProps) {
+  const { data: session } = useSession();
   const [tasks, setTasks] = useState<KanbanTask[]>(() =>
     initialTasks.map((t) => ({ ...t, status: t.status.toLowerCase() }))
   );
@@ -50,6 +54,15 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
 
   // Filter state
   const { filters, setFilter, clearFilter, clearAllFilters } = useFilters(true);
+
+  // Presence tracking
+  const { otherUsers } = usePresence({
+    projectId,
+    userId: session?.user?.id || '',
+    userName: session?.user?.name || null,
+    userImage: session?.user?.image || null,
+    enabled: !!session?.user?.id,
+  });
 
   // Get all unique labels from tasks
   const allLabels = useMemo(() => {
@@ -252,6 +265,13 @@ export default function KanbanBoard({ projectId, initialTasks, members }: Kanban
 
   return (
     <div className="relative space-y-4">
+      {/* Presence Indicator */}
+      {otherUsers.length > 0 && (
+        <div className="flex justify-end">
+          <ViewingIndicator viewers={otherUsers} />
+        </div>
+      )}
+
       {/* Filter Panel */}
       <AdvancedFilterPanel
         filters={filters}

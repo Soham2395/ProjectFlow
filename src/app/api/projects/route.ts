@@ -144,26 +144,32 @@ export async function POST(req: Request) {
       .filter((e) => e !== (session.user!.email?.toLowerCase() || ""));
     const uniqueEmails = Array.from(new Set(emails));
     if (uniqueEmails.length) {
-      await prisma.$transaction(
-        uniqueEmails.map((email) =>
-          prisma.invitation.upsert({
-            where: {
-              // unique on (email, projectId, status) so we upsert if pending already exists
-              email_projectId_status: { email, projectId: project.id, status: "pending" },
-            } as any,
-            create: {
+      // Create invitations for emails that don't already have pending invitations
+      for (const email of uniqueEmails) {
+        // Check if invitation already exists
+        const existing = await prisma.invitation.findFirst({
+          where: {
+            email,
+            projectId: project.id,
+            status: "pending",
+          },
+        });
+
+        // Only create if doesn't exist
+        if (!existing) {
+          await prisma.invitation.create({
+            data: {
               email,
               projectId: project.id,
-              organizationId, // Add organizationId to invitation
+              organizationId,
               role: "member",
               token: crypto.randomUUID(),
               status: "pending",
               invitedBy: session.user.id,
             },
-            update: {},
-          })
-        )
-      );
+          });
+        }
+      }
 
       // Log invitation URLs (stub for sending emails)
       const origin = req.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

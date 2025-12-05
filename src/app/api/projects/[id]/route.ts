@@ -62,33 +62,54 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if (Array.isArray(memberEmails) && memberEmails.length) {
     const emails = memberEmails.map((e) => e?.toLowerCase().trim()).filter(Boolean) as string[];
     if (emails.length) {
+      // Get project's organizationId for invitations
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { organizationId: true },
+      });
+
+      if (!project) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 });
+      }
+
       const uniqueEmails = Array.from(new Set(emails));
-      await prisma.$transaction(
-        uniqueEmails.map((email) =>
-          prisma.invitation.upsert({
-            where: { email_projectId_status: { email, projectId, status: "pending" } } as any,
-            create: {
+
+      // Create invitations for emails that don't already have pending invitations
+      for (const email of uniqueEmails) {
+        // Check if invitation already exists
+        const existing = await prisma.invitation.findFirst({
+          where: {
+            email,
+            projectId,
+            status: "pending",
+          },
+        });
+
+        // Only create if doesn't exist
+        if (!existing) {
+          await prisma.invitation.create({
+            data: {
               email,
               projectId,
+              organizationId: project.organizationId,
               role: "member",
               token: crypto.randomUUID(),
               status: "pending",
               invitedBy: session.user.id,
             },
-            update: {},
-          })
-        )
-      );
+          });
+        }
+      }
     }
   }
 
-  const project = await prisma.project.update({
+  const updatedProject = await prisma.project.update({
     where: { id: projectId },
     data,
     include: { members: { include: { user: { select: { id: true, name: true, email: true, image: true } } } }, invitations: true },
   });
 
-  return NextResponse.json({ project });
+  return NextResponse.json({ project: updatedProject });
 }
 
 // DELETE /api/projects/[id] - admin only
